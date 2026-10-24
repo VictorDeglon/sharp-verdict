@@ -1,0 +1,23 @@
+{
+    "schemaVersion": 1,
+    "id": "sharp",
+    "version": "${version}",
+    "name": "SHARP",
+    "description": "Hold-to-lock targeting prototype for single-player practice: target selection, hitbox outline and an optional smoothed practice camera.",
+    "authors": [
+        "Victor Deglon"
+    ],
+    "license": "All-Rights-Reserved",
+    "environment": "client",
+    "entrypoints": {
+        "client": [
+            "dev.sharp.client.SharpClient"
+        ]
+    },
+    "depends": {
+        "fabricloader": ">=0.19.5",
+        "minecraft": "~26.3",
+        "java": ">=25",
+        "fabric-api": "*"
+    }
+}

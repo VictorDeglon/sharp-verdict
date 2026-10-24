@@ -1,0 +1,7 @@
+{
+    "key.category.sharp.main": "SHARP",
+    "key.sharp.hold": "Hold to Lock Target",
+    "key.sharp.toggle_tracking": "Toggle Camera Tracking",
+    "key.sharp.toggle_debug": "Toggle Debug Panel",
+    "key.sharp.cycle_text": "Cycle Status Text (auto, minimal, off)"
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "sharp-gametest",
+  "version": "1.0.0",
+  "name": "SHARP game test",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": ["dev.sharp.gametest.SharpGameTest"]
+  },
+  "depends": {
+    "fabric-api": "*",
+    "sharp": "*"
+  }
+}
