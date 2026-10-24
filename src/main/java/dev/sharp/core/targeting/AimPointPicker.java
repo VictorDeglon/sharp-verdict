@@ -34,6 +34,8 @@ public final class AimPointPicker {
     static final double SIDE_FRACTION = 0.65;
     /** How far toward the back a shielded target is aimed at, as a fraction of its half depth along that direction. */
     static final double REAR_FRACTION = 0.7;
+    /** How far inside the box the nearest point sits, in blocks, on an axis where the eye is outside the box. At most a quarter of the box. */
+    public static final double NEAREST_INSET = 0.08;
 
     /** Which part of the body the chosen spot is on, for the on-screen text. */
     public enum Zone {
@@ -76,6 +78,17 @@ public final class AimPointPicker {
      */
     public static Choice pick(
             V3 eye, TargetCandidate target, List<TargetCandidate> all, TargetingSettings s, LineOfSight los, double preferredFraction) {
+        return pick(eye, target, all, s, los, preferredFraction, null);
+    }
+
+    /**
+     * As above, and a non-null {@code preferredPoint} (from {@link #preferredPoint}) is tried before everything else. It is ignored for
+     * a target holding a shield up, where the back of the target is the only spot that matters. Like every other spot it is skipped when a
+     * block hides it or another hitbox covers it.
+     */
+    public static Choice pick(
+            V3 eye, TargetCandidate target, List<TargetCandidate> all, TargetingSettings s, LineOfSight los,
+            double preferredFraction, V3 preferredPoint) {
         Box box = target.box();
         double fallbackFraction = Double.isFinite(preferredFraction) ? preferredFraction : s.feetFirst() ? FEET_FRACTION : s.aimHeight();
         if (box.contains(eye)) {
@@ -99,28 +112,38 @@ public final class AimPointPicker {
             bases.replaceAll(b -> new V3(b.x() - forward[0] * back, 0.0, b.z() - forward[1] * back));
         }
 
+        // Every spot to try, in order, with the height fraction it counts as for the on-screen text.
+        List<V3> spots = new ArrayList<>();
+        List<Double> spotFractions = new ArrayList<>();
+        if (preferredPoint != null && !shielded) {
+            spots.add(preferredPoint);
+            spotFractions.add(fractionOf(preferredPoint, box));
+        }
+        for (double f : fractions) {
+            for (V3 base : bases) {
+                spots.add(new V3(base.x(), box.minY() + box.height() * f, base.z()));
+                spotFractions.add(f);
+            }
+        }
+
         V3 firstSeen = null;
         double firstSeenFraction = 0.0;
         boolean preferredCovered = false;
-        int index = 0;
-        for (double f : fractions) {
-            for (V3 base : bases) {
-                V3 point = new V3(base.x(), box.minY() + box.height() * f, base.z());
-                int position = index++;
-                if (s.requireLineOfSight() && !los.visible(eye, point)) {
-                    continue;
-                }
-                if (firstSeen == null) {
-                    firstSeen = point;
-                    firstSeenFraction = f;
-                }
-                if (s.avoidCover() && coveredByOther(eye, point, target, all)) {
-                    preferredCovered |= position == 0;
-                    continue;
-                }
-                Exposure exposure = shielded ? Exposure.SHIELDED : preferredCovered ? Exposure.PARTLY_COVERED : Exposure.OPEN;
-                return new Choice(point, exposure, Zone.of(f), shieldBlocksYou);
+        for (int position = 0; position < spots.size(); position++) {
+            V3 point = spots.get(position);
+            if (s.requireLineOfSight() && !los.visible(eye, point)) {
+                continue;
             }
+            if (firstSeen == null) {
+                firstSeen = point;
+                firstSeenFraction = spotFractions.get(position);
+            }
+            if (s.avoidCover() && coveredByOther(eye, point, target, all)) {
+                preferredCovered |= position == 0;
+                continue;
+            }
+            Exposure exposure = shielded ? Exposure.SHIELDED : preferredCovered ? Exposure.PARTLY_COVERED : Exposure.OPEN;
+            return new Choice(point, exposure, Zone.of(spotFractions.get(position)), shieldBlocksYou);
         }
 
         if (firstSeen != null) {
@@ -128,8 +151,43 @@ public final class AimPointPicker {
             return new Choice(firstSeen, Exposure.COVERED, Zone.of(firstSeenFraction), shieldBlocksYou);
         }
         // Blocks hide every spot. The selector already decides whether such a target may be locked; just aim at the preferred spot.
-        V3 preferred = new V3(bases.get(0).x(), box.minY() + box.height() * fractions.get(0), bases.get(0).z());
-        return new Choice(preferred, shielded ? Exposure.SHIELDED : Exposure.OPEN, Zone.of(fractions.get(0)), shieldBlocksYou);
+        return new Choice(spots.get(0), shielded ? Exposure.SHIELDED : Exposure.OPEN, Zone.of(spotFractions.get(0)), shieldBlocksYou);
+    }
+
+    /**
+     * The point of the box nearest the eye, pulled a little way inside so that a small tracking error still lands in the box. This is the
+     * spot the game measures reach to, so it is the one most likely to connect when a hit is marginal. It moves continuously as the eye
+     * or the box moves: it is the eye clamped into the shrunken box, one axis at a time.
+     */
+    public static V3 nearestPoint(Box box, V3 eye) {
+        return new V3(
+                clampInside(eye.x(), box.minX(), box.maxX()),
+                clampInside(eye.y(), box.minY(), box.maxY()),
+                clampInside(eye.z(), box.minZ(), box.maxZ()));
+    }
+
+    /**
+     * The spot to try first: {@code nearestWeight} 0 is the middle of the body, 1 is {@link #nearestPoint}, and anything between is the
+     * point that far along the straight line from one to the other. Both ends are inside the box, so every blend is too.
+     */
+    public static V3 preferredPoint(Box box, V3 eye, double nearestWeight) {
+        V3 middle = box.pointAtHeight(MIDDLE_FRACTION);
+        V3 nearest = nearestPoint(box, eye);
+        double w = Math.max(0.0, Math.min(1.0, nearestWeight));
+        return new V3(
+                middle.x() + (nearest.x() - middle.x()) * w,
+                middle.y() + (nearest.y() - middle.y()) * w,
+                middle.z() + (nearest.z() - middle.z()) * w);
+    }
+
+    private static double clampInside(double v, double lo, double hi) {
+        double inset = Math.min(NEAREST_INSET, (hi - lo) * 0.25);
+        return Math.max(lo + inset, Math.min(hi - inset, v));
+    }
+
+    private static double fractionOf(V3 point, Box box) {
+        double h = box.height();
+        return h < 1.0e-9 ? 0.0 : Math.max(0.0, Math.min(1.0, (point.y() - box.minY()) / h));
     }
 
     private static List<Double> fractions(TargetingSettings s, double preferredFraction) {

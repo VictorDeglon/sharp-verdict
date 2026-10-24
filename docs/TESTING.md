@@ -8,6 +8,7 @@ What was run for each version, and what was not.
 | 0.3.0 | 280 passed, 0 failed | Ignoring the tier handicap broke 4 tests. Letting the lock switch targets broke 7. | **Not run.** Minecraft launched and the mod loaded, then the sandbox could not open a graphics context. The scenario for tiers and the no-switch lock was written but has not been executed. |
 | 0.4.0 | 314 passed, 0 failed | Removing the fall blend broke 3 tests. Removing the reach hold broke 1. Removing the slew limit broke 4. | **Not run**, same reason. Two checks were changed for the new out-of-reach aim (middle of the body instead of the feet). |
 | 0.4.1 | 314 passed, 0 failed | None needed: no behaviour change. The cached ignore list is in `GameAccess`, which touches Minecraft, so it has no unit test. | **Not run**, same reason. |
+| 0.5.0 | 339 passed, 0 failed | Six deliberate bugs in the nearest-point code, each caught: the point collapsing to the middle (6 tests failed), the picker ignoring the preferred point (6), no inset (4), the planner never leaning in (8), no slew on the weight (4), the controller never passing the point (4). | **Not run**, same reason. No in-game check was added for the nearest point. |
 
 Each mutation check edits the code to be wrong on purpose, runs the suite, and confirms at least one test fails. The edit is then reverted. A suite that cannot fail proves nothing.
 

@@ -89,6 +89,13 @@ public final class SharpConfig {
      */
     public boolean aimAdaptive = true;
 
+    /**
+     * While the target is in reach, aim at the point of its hitbox nearest your eyes instead of the feet. That is the spot the game
+     * measures reach to, so it is the one most likely to connect when a hit is marginal. It leans in smoothly: out of reach the aim stays on
+     * the middle of the body, and while the target falls it comes in as the target comes level with you. Needs {@link #aimAdaptive}.
+     */
+    public boolean aimNearestPoint = true;
+
     /** Maximum distance in blocks, 1..128. */
     public double range = 64.0;
 

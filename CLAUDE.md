@@ -53,7 +53,7 @@ Frame flow: key, focus, screen and world state go through `ActivationTracker`. `
 - **The aim is deterministic.** No random jitter in the aim point, the speed or the timing. `AimHeightPlannerTest.theSameInputsAlwaysGiveTheSameOutput` pins this. Smoothness comes from easing and limits, not noise.
 - **The mod is not stealth.** Do not add behaviour whose purpose is to hide from a server's anti-cheat. The README says it does not hide itself, and that is meant literally.
 - **Smoothing keys off a client tick counter** (`SharpRuntime`), not `level.getGameTime()`. A server resends game time and it jumps, which used to restart the interpolation and hitch the aim point once a second.
-- **Out of reach aims at the middle, in reach at the feet, falling at the middle sliding down** (`AimHeightPlanner`), slew limited to 2.5 box heights per second.
+- **Out of reach aims at the middle, in reach at the point of the hitbox nearest the eyes, falling at the middle easing toward that point** (`AimHeightPlanner` and `AimPointPicker.preferredPoint`). The height preference is slew limited to 2.5 box heights per second and the nearest-point weight to 6 per second, so the aim point never jumps. `nearestPoint` is the eye clamped into a box shrunk by 0.08 blocks, which keeps it inside the box and continuous. `aimNearestPoint=false` restores the feet-first spot.
 - **The ignore list** (`SharpConfig.DEFAULT_IGNORED_TYPES`) only lists types by id. Armor stands are deliberately not on it: they are the second tier.
 
 ## Releasing

@@ -207,4 +207,76 @@ class AimHeightPlannerTest {
         }
         assertEquals(0.3, v, 1.0e-9);
     }
+
+    // ---- the nearest-point weight -------------------------------------------------------------------
+
+    @Test
+    void inReachOnTheGroundTheNearestPointIsFullyUsed() {
+        run(at(60), true, 5);
+        assertEquals(1.0, planner.nearestWeight(), 1.0e-9);
+    }
+
+    @Test
+    void outOfReachTheNearestPointIsNotUsed() {
+        run(at(60), false, 30);
+        assertEquals(0.0, planner.nearestWeight(), 1.0e-9);
+    }
+
+    @Test
+    void comingIntoReachLeansInQuicklyButNotAllAtOnce() {
+        run(at(60), false, 30);
+        double previous = 0.0;
+        int frames = 0;
+        double w = 0.0;
+        while (w < 1.0 - 1.0e-9 && frames < 60) {
+            planner.plan(at(60), EYE_Y, true, DT, settings);
+            w = planner.nearestWeight();
+            assertTrue(w >= previous - 1.0e-12, "only ever grows while closing in");
+            assertTrue(w - previous <= AimHeightPlanner.MAX_WEIGHT_SLEW * DT + 1.0e-9, "slew limit");
+            previous = w;
+            frames++;
+        }
+        assertEquals(1.0, w, 1.0e-9);
+        assertTrue(frames >= 5 && frames <= 11, "about a sixth of a second at 60 fps: " + frames);
+    }
+
+    @Test
+    void aBlipOutOfReachDoesNotMoveTheNearestWeight() {
+        run(at(60), true, 30);
+        for (int i = 0; i < 6; i++) {
+            planner.plan(at(60), EYE_Y, false, DT, settings);
+            assertEquals(1.0, planner.nearestWeight(), 1.0e-9);
+        }
+    }
+
+    @Test
+    void aFallingTargetFarAboveUsesTheMiddleAndLeansIntoTheNearestPointAsItComesLevel() {
+        double y = 72;
+        double atHigh = Double.NaN;
+        double atLevel = Double.NaN;
+        double previous = Double.NaN;
+        boolean low = false;
+        while (y > 59.5) {
+            planner.plan(at(y), EYE_Y, true, DT, settings);
+            double w = planner.nearestWeight();
+            if (!Double.isNaN(previous)) {
+                assertTrue(Math.abs(w - previous) <= AimHeightPlanner.MAX_WEIGHT_SLEW * DT + 1.0e-9, "slew limit at y=" + y);
+            }
+            if (Math.abs(y - 68.0) < 0.07) atHigh = w;
+            if (Math.abs(y - 60.0) < 0.07) atLevel = w;
+            previous = w;
+            y -= 8.0 * DT;
+        }
+        assertEquals(0.0, atHigh, 0.02, "8 blocks above the feet it is still the middle: " + atHigh);
+        assertTrue(atLevel > 0.9, "level with the feet it is the nearest point: " + atLevel);
+    }
+
+    @Test
+    void resetClearsTheNearestWeight() {
+        run(at(60), true, 30);
+        planner.reset();
+        assertEquals(0.0, planner.nearestWeight(), 1.0e-9);
+        planner.plan(at(60), EYE_Y, false, DT, settings);
+        assertEquals(0.0, planner.nearestWeight(), 1.0e-9);
+    }
 }

@@ -279,4 +279,9 @@ class SharpConfigTest {
         assertEquals(256, c.sanitize().ignoredEntityTypes.size());
         assertTrue(c.ignoredEntityTypes.stream().allMatch(t -> t.length() <= 100));
     }
+
+    @Test
+    void theNearestPointIsOnByDefault() {
+        assertTrue(new SharpConfig().aimNearestPoint);
+    }
 }

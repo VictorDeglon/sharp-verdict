@@ -741,6 +741,7 @@ class SharpControllerTest {
 
     @Test
     void itAimsAtTheFeetByDefaultWhichIsBelowTheMiddle() {
+        config.aimNearestPoint = false; // the feet-first order is what this checks
         w.reach = box -> true; // in reach, where the normal spot is used
         w.candidates.add(dummy(1, 0, 10));
         w.frame();
@@ -756,6 +757,7 @@ class SharpControllerTest {
     @Test
     void withFeetFirstOffItAimsAtTheLoweredCentre() {
         config.aimFeetFirst = false;
+        config.aimNearestPoint = false;
         w.reach = box -> true;
         w.candidates.add(dummy(1, 0, 10));
         w.frame();
@@ -978,6 +980,7 @@ class SharpControllerTest {
 
     @Test
     void outOfReachItAimsAtTheMiddleAndDropsToTheFeetTheMomentItIsInReach() {
+        config.aimNearestPoint = false; // the feet-first path
         w.candidates.add(dummy(1, 0, 10));
         w.frame();
         w.key = true;
@@ -1022,6 +1025,7 @@ class SharpControllerTest {
 
     @Test
     void aFallingTargetIsAimedAtInTheMiddleThenTheSpotSlidesDownAsItComesLevelWithThePlayer() {
+        config.aimNearestPoint = false; // the height path
         w.reach = box -> true;
         w.candidates.add(new TargetCandidate(1, "sharp 1", new Box(-0.3, 12, 9.7, 0.3, 13.8, 10.3)));
         w.frame();
@@ -1052,6 +1056,7 @@ class SharpControllerTest {
 
     @Test
     void aFallingTargetThatIsOutOfReachKeepsTheMiddleAndOnceInReachGoesToTheNormalSpot() {
+        config.aimNearestPoint = false; // the height path
         w.candidates.add(new TargetCandidate(1, "sharp 1", new Box(-0.3, 12, 9.7, 0.3, 13.8, 10.3)));
         w.frame();
         w.key = true;
@@ -1066,5 +1071,92 @@ class SharpControllerTest {
             r = fallingFrame(12, i);
         }
         assertTrue(fractionOf(r) < 0.2, "in reach and level with the player: " + fractionOf(r));
+    }
+
+    // ---- aim at the point nearest the eye ----------------------------------------------------------
+
+    @Test
+    void inReachItAimsAtThePointOfTheHitboxNearestTheEye() {
+        w.reach = box -> true;
+        w.candidates.add(dummy(1, 0, 10));
+        w.frame();
+        w.key = true;
+        FrameResult r = w.frame();
+        Box box = r.scene().main().box();
+        assertEquals(AimPointPicker.nearestPoint(box, w.eye), r.scene().aimPoint());
+        assertEquals(Exposure.OPEN, r.scene().exposure());
+        assertTrue(box.contains(r.scene().aimPoint()));
+        assertEquals(box.distanceTo(w.eye), r.scene().aimPoint().distanceTo(w.eye), AimPointPicker.NEAREST_INSET * Math.sqrt(3.0) + 1.0e-9,
+                "as near the eye as the box allows");
+    }
+
+    @Test
+    void outOfReachItStillAimsAtTheMiddleEvenWithTheNearestPointOn() {
+        w.candidates.add(dummy(1, 0, 10));
+        w.frame();
+        w.key = true;
+        FrameResult r = w.frames(20);
+        assertEquals(0.5, fractionOf(r), 1.0e-9);
+        assertEquals(r.scene().main().box().center().x(), r.scene().aimPoint().x(), 1.0e-9);
+    }
+
+    @Test
+    void comingIntoReachTheAimPointSlidesToTheNearestPointWithoutALurch() {
+        w.candidates.add(dummy(1, 0, 10));
+        w.frame();
+        w.key = true;
+        FrameResult r = w.frames(20);
+        V3 previous = r.scene().aimPoint();
+
+        w.reach = box -> true;
+        double biggestStep = 0;
+        int frames = 0;
+        while (frames < 30) {
+            r = w.frame();
+            V3 now = r.scene().aimPoint();
+            biggestStep = Math.max(biggestStep, now.distanceTo(previous));
+            previous = now;
+            frames++;
+        }
+        assertEquals(AimPointPicker.nearestPoint(r.scene().main().box(), w.eye), previous);
+        // The point travels about 8 blocks (middle of the body to the near face) in under a fifth of a second; no single 60 fps frame may take much of it.
+        assertTrue(biggestStep < 0.2, "largest single-frame move of the aim point: " + biggestStep);
+    }
+
+    @Test
+    void aFallingTargetIsAimedAtInTheMiddleAndThenTheNearestPointAsItComesLevel() {
+        w.reach = box -> true;
+        w.candidates.add(new TargetCandidate(1, "sharp 1", new Box(-0.3, 12, 9.7, 0.3, 13.8, 10.3)));
+        w.frame();
+        w.key = true;
+        FrameResult r = null;
+        for (int i = 0; i < 30; i++) {
+            r = fallingFrame(12, i);
+        }
+        assertEquals(0.5, fractionOf(r), 0.02, "high above and falling: the middle");
+        for (int i = 30; i < 100; i++) {
+            r = fallingFrame(12, i);
+        }
+        assertEquals(AimPointPicker.nearestPoint(r.scene().main().box(), w.eye), r.scene().aimPoint(), "level with the player: the nearest point");
+    }
+
+    @Test
+    void withTheNearestPointOffTheFeetFirstSpotIsUsedInReach() {
+        config.aimNearestPoint = false;
+        w.reach = box -> true;
+        w.candidates.add(dummy(1, 0, 10));
+        w.frame();
+        w.key = true;
+        assertEquals(AimPointPicker.Zone.FEET, w.frame().debug().zone());
+    }
+
+    @Test
+    void theNearestPointNeedsAdaptiveAimOn() {
+        config.aimAdaptive = false;
+        w.reach = box -> true;
+        w.candidates.add(dummy(1, 0, 10));
+        w.frame();
+        w.key = true;
+        assertEquals(AimPointPicker.Zone.FEET, w.frame().debug().zone(), "adaptive aim off means the plain feet-first order");
     }
 }

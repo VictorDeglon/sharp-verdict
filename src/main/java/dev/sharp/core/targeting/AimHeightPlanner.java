@@ -20,6 +20,10 @@ import dev.sharp.core.math.Box;
  *   <li><b>Otherwise.</b> The normal preference: the feet zone with {@code feetFirst}, else {@code aimHeight}.
  * </ul>
  *
+ * <p>Alongside the height it keeps a second number, {@link #nearestWeight()}, that follows the same three situations. The controller uses it
+ * to lean the aim point from the middle of the body toward the point of the hitbox nearest the eye, see
+ * {@link AimPointPicker#preferredPoint}.
+ *
  * <p>Everything is smoothed: the value never changes faster than {@link #MAX_SLEW} per second, so no switch above can make the camera
  * lurch. There is no randomness anywhere in here; the same inputs always give the same output.
  */
@@ -35,6 +39,8 @@ public final class AimHeightPlanner {
     static final double BLEND_HEIGHT = 5.0;
     /** How long a target must stay out of reach before the preference moves back to the middle. */
     static final double REACH_HOLD_SECONDS = 0.25;
+    /** The most the nearest-point weight may change per second. Faster than the height, so the better spot is taken quickly in reach. */
+    public static final double MAX_WEIGHT_SLEW = 6.0;
     /** Time constant for smoothing the measured vertical speed. */
     private static final double SPEED_SMOOTHING_SECONDS = 0.06;
     private static final double PLAYER_EYE_HEIGHT = 1.62;
@@ -47,6 +53,8 @@ public final class AimHeightPlanner {
     private boolean falling;
     private boolean reachState;
     private double outOfReachSeconds;
+    private boolean weightStarted;
+    private double nearestWeight;
 
     /**
      * @param box     the target's box for this frame
@@ -83,10 +91,22 @@ public final class AimHeightPlanner {
 
         double base = reachState ? normal : CENTRE;
         double desired = base;
+        double fallBlend = 0.0;
         if (falling) {
             double above = box.minY() - (eyeY - PLAYER_EYE_HEIGHT);
-            double t = smoothstep(clamp01(above / BLEND_HEIGHT));
-            desired = base + (CENTRE - base) * t;
+            fallBlend = smoothstep(clamp01(above / BLEND_HEIGHT));
+            desired = base + (CENTRE - base) * fallBlend;
+        }
+
+        // The same three situations, as how far to lean toward the point nearest the eye: all the way in reach, not at all out of reach,
+        // and while falling in step with how far above the player it still is.
+        double desiredWeight = reachState ? 1.0 - fallBlend : 0.0;
+        if (!weightStarted) {
+            weightStarted = true;
+            nearestWeight = desiredWeight;
+        } else {
+            double maxWeightMove = MAX_WEIGHT_SLEW * step;
+            nearestWeight += Math.max(-maxWeightMove, Math.min(maxWeightMove, desiredWeight - nearestWeight));
         }
 
         if (!started) {
@@ -97,6 +117,14 @@ public final class AimHeightPlanner {
             fraction += Math.max(-maxMove, Math.min(maxMove, desired - fraction));
         }
         return fraction;
+    }
+
+    /**
+     * How far to lean toward the point of the box nearest the eye, after the latest {@link #plan}: 0 is the middle of the body, 1 is the
+     * nearest point. Moves at most {@link #MAX_WEIGHT_SLEW} per second.
+     */
+    public double nearestWeight() {
+        return nearestWeight;
     }
 
     /** True while the target is dropping fast enough to count as falling. */
@@ -114,6 +142,8 @@ public final class AimHeightPlanner {
         falling = false;
         reachState = false;
         outOfReachSeconds = 0.0;
+        weightStarted = false;
+        nearestWeight = 0.0;
     }
 
     private static double clamp01(double v) {

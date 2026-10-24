@@ -301,4 +301,130 @@ class AimPointPickerTest {
         Choice c = AimPointPicker.pick(EYE, t, List.of(t), defaults, LineOfSight.ALWAYS, 7.0);
         assertTrue(t.box().contains(c.point()), "still inside the box: " + c.point());
     }
+
+    // ---- the point nearest the eye ----------------------------------------------------------------
+
+    private static final Box STANDING = new Box(-0.3, 0, 9.7, 0.3, 1.8, 10.3);
+
+    @Test
+    void theNearestPointIsOnTheNearFaceAtEyeHeightWhenTheEyeIsLevelWithTheBox() {
+        V3 p = AimPointPicker.nearestPoint(STANDING, EYE);
+        assertEquals(0.0, p.x(), 1.0e-9);
+        assertEquals(1.62, p.y(), 1.0e-9, "the eye is inside the box's height range, so the point is at the eye's height");
+        assertEquals(9.7 + AimPointPicker.NEAREST_INSET, p.z(), 1.0e-9, "on the face nearest the eye, pulled a little inside");
+    }
+
+    @Test
+    void theNearestPointIsOnTheTopWhenTheEyeIsAboveTheBoxAndOnTheBottomWhenBelow() {
+        V3 above = AimPointPicker.nearestPoint(STANDING, new V3(0, 6.0, 0));
+        assertEquals(1.8 - AimPointPicker.NEAREST_INSET, above.y(), 1.0e-9);
+        V3 below = AimPointPicker.nearestPoint(STANDING, new V3(0, -4.0, 0));
+        assertEquals(AimPointPicker.NEAREST_INSET, below.y(), 1.0e-9);
+    }
+
+    @Test
+    void theNearestPointIsOnTheNearSideWhenTheEyeIsToTheSide() {
+        V3 east = AimPointPicker.nearestPoint(STANDING, new V3(8.0, 1.62, 10.0));
+        assertEquals(0.3 - AimPointPicker.NEAREST_INSET, east.x(), 1.0e-9);
+        assertEquals(10.0, east.z(), 1.0e-9, "level with the box in depth, so the same depth as the eye");
+        V3 west = AimPointPicker.nearestPoint(STANDING, new V3(-8.0, 1.62, 10.0));
+        assertEquals(-0.3 + AimPointPicker.NEAREST_INSET, west.x(), 1.0e-9);
+    }
+
+    @Test
+    void theNearestPointIsAlwaysInsideTheBoxAndAsNearAsTheInsetAllows() {
+        for (double x = -6; x <= 6; x += 1.5) {
+            for (double y = -3; y <= 6; y += 1.5) {
+                for (double z = -4; z <= 16; z += 2.0) {
+                    V3 eye = new V3(x, y, z);
+                    if (STANDING.contains(eye)) continue;
+                    V3 p = AimPointPicker.nearestPoint(STANDING, eye);
+                    assertTrue(STANDING.contains(p), "inside the box for eye " + eye + ": " + p);
+                    double gap = p.distanceTo(eye) - STANDING.distanceTo(eye);
+                    assertTrue(gap >= -1.0e-9, "never nearer than the surface: " + gap);
+                    assertTrue(gap <= AimPointPicker.NEAREST_INSET * Math.sqrt(3.0) + 1.0e-9, "within the inset of the surface: " + gap);
+                }
+            }
+        }
+    }
+
+    @Test
+    void theNearestPointMovesNoFasterThanTheEyeDoes() {
+        // Continuity: a small step of the eye can only move the point by at most that step, so the camera never lurches.
+        V3 a = new V3(-1.0, 3.0, 2.0);
+        for (int i = 0; i < 400; i++) {
+            V3 b = new V3(a.x() + 0.01, a.y() - 0.007, a.z() + 0.02);
+            double eyeMove = a.distanceTo(b);
+            double pointMove = AimPointPicker.nearestPoint(STANDING, a).distanceTo(AimPointPicker.nearestPoint(STANDING, b));
+            assertTrue(pointMove <= eyeMove + 1.0e-9, "step " + i + ": point moved " + pointMove + " for an eye move of " + eyeMove);
+            a = b;
+        }
+    }
+
+    @Test
+    void aThinBoxIsStillAimedAtOnItsSurface() {
+        Box plate = new Box(0, 0, 5, 0, 2, 5);
+        V3 p = AimPointPicker.nearestPoint(plate, new V3(0, 1, 0));
+        assertTrue(plate.contains(p));
+    }
+
+    @Test
+    void thePreferredPointBlendsFromTheMiddleToTheNearestPoint() {
+        V3 middle = STANDING.pointAtHeight(0.5);
+        V3 nearest = AimPointPicker.nearestPoint(STANDING, EYE);
+        assertEquals(middle, AimPointPicker.preferredPoint(STANDING, EYE, 0.0));
+        assertEquals(nearest, AimPointPicker.preferredPoint(STANDING, EYE, 1.0));
+        V3 half = AimPointPicker.preferredPoint(STANDING, EYE, 0.5);
+        assertEquals((middle.y() + nearest.y()) / 2, half.y(), 1.0e-9);
+        assertEquals((middle.z() + nearest.z()) / 2, half.z(), 1.0e-9);
+        assertTrue(STANDING.contains(half));
+        assertEquals(middle, AimPointPicker.preferredPoint(STANDING, EYE, -3.0), "clamped below");
+        assertEquals(nearest, AimPointPicker.preferredPoint(STANDING, EYE, 9.0), "clamped above");
+    }
+
+    @Test
+    void aPreferredPointIsTakenWhenItIsOpen() {
+        TargetCandidate t = standing(1, 0, 10);
+        V3 want = AimPointPicker.nearestPoint(t.box(), EYE);
+        Choice c = AimPointPicker.pick(EYE, t, List.of(t), defaults, LineOfSight.ALWAYS, Double.NaN, want);
+        assertEquals(want, c.point());
+        assertEquals(Exposure.OPEN, c.exposure());
+    }
+
+    @Test
+    void aHiddenPreferredPointFallsBackToTheUsualSpots() {
+        TargetCandidate t = standing(1, 0, 10);
+        V3 want = AimPointPicker.nearestPoint(t.box(), EYE);
+        LineOfSight lowOnly = (from, to) -> to.y() < 0.5;
+        Choice c = AimPointPicker.pick(EYE, t, List.of(t), defaults, lowOnly, Double.NaN, want);
+        assertEquals(Zone.FEET, c.zone());
+        assertTrue(c.point().y() < 0.5);
+    }
+
+    @Test
+    void aCoveredPreferredPointStillShowsAsCoveredWhenEverySpotIsBehindSomethingElse() {
+        TargetCandidate t = standing(1, 0, 10);
+        TargetCandidate plank = new TargetCandidate(2, "plank", new Box(-3, 0, 5, 3, 3, 6));
+        V3 want = AimPointPicker.nearestPoint(t.box(), EYE);
+        Choice c = AimPointPicker.pick(EYE, t, List.of(t, plank), defaults, LineOfSight.ALWAYS, Double.NaN, want);
+        assertEquals(Exposure.COVERED, c.exposure());
+        assertEquals(want, c.point(), "the first spot that could be seen is reported");
+    }
+
+    @Test
+    void aShieldedTargetIgnoresThePreferredPoint() {
+        Box box = new Box(-0.3, 0, 9.7, 0.3, 1.8, 10.3);
+        TargetCandidate t = new TargetCandidate(1, "t1", box, 0.0, true, TargetTier.PLAYER);
+        V3 want = AimPointPicker.nearestPoint(box, EYE);
+        Choice c = AimPointPicker.pick(EYE, t, List.of(t), defaults, LineOfSight.ALWAYS, Double.NaN, want);
+        assertEquals(Exposure.SHIELDED, c.exposure());
+        assertTrue(!c.point().equals(want), "the back of the target is aimed at, not the near face");
+    }
+
+    @Test
+    void standingInsideTheBoxStillGivesInsideWhateverIsPreferred() {
+        TargetCandidate around = new TargetCandidate(1, "t1", new Box(-0.5, 0, -0.5, 0.5, 2.0, 0.5));
+        Choice c = AimPointPicker.pick(EYE, around, List.of(around), defaults, LineOfSight.ALWAYS, Double.NaN, new V3(0, 1, 0.3));
+        assertEquals(Exposure.INSIDE, c.exposure());
+    }
 }
