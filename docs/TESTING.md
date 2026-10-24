@@ -15,7 +15,7 @@ Each mutation check edits the code to be wrong on purpose, runs the suite, and c
 
 - `gradle/wrapper/gradle-wrapper.jar` is byte-identical to the jar Gradle 9.7.1 generates itself (same SHA-256).
 - `./gradlew build` was run in a clean copy of the tree, with no `build` or `.gradle` directories: 314 tests passed and the jar was produced.
-- **Not verified:** a build from nothing, with an empty dependency cache. Maven Central answered HTTP 429 to the sandbox this was built in, so the dependency download could not complete there. The first build on a normal connection downloads Minecraft and the mappings.
+- GitHub Actions built it from an empty cache on a fresh runner (Java 25.0.3, Microsoft build) and passed all 314 tests, for both the push and the pull request run. The sandbox this was written in could not do that itself: Maven Central answered it with HTTP 429.
 
 ## What is covered by unit tests
 
