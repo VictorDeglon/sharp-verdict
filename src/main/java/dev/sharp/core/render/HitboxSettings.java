@@ -9,7 +9,7 @@ package dev.sharp.core.render;
  * @param fillAlpha       opacity of that fill, 0..1
  * @param aimMarker       whether a small cross marks the exact aim point
  * @param lineWidthPixels outline width in approximate screen pixels
- * @param showOthers      whether the other practice entities in range are outlined too
+ * @param showOthers      whether the other targets in range are outlined too
  * @param maxOthers       upper bound on how many of those are drawn
  * @param mainColor       outline of the locked target, ARGB (blue)
  * @param rangeColor      outline of another entity in range, ARGB (yellow)

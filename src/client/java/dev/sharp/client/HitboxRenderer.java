@@ -13,7 +13,7 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Draws the target's real bounding box. It only ever draws what the controller put in the scene, which is
- * the locked target (and, if enabled, the other practice entities in range), so unrelated entities are never
+ * the locked target (and, if enabled, the other targets in range), so unrelated entities are never
  * touched. What to draw, colours, widths and distance culling are decided in the core; this class just
  * submits the resulting boxes.
  *

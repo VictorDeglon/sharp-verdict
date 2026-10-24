@@ -5,7 +5,7 @@ SHARP: Verdict is a Fabric client mod for Minecraft 26.3. Hold a key, it locks o
 ## Commands
 
 ```bash
-./gradlew build                 # needs JDK 25. Compiles, runs every unit test, builds build/libs/sharp-<version>.jar
+./gradlew build                 # needs JDK 25. Compiles, runs every unit test, builds build/libs/sharp-verdict-<version>.jar
 ./gradlew test                  # unit tests only, a few seconds
 ./gradlew runClient             # development client with the mod loaded
 ./gradlew runClientGameTest     # plays the feature in real Minecraft. Needs working OpenGL. Linux: xvfb-run -a ./gradlew runClientGameTest

@@ -8,8 +8,10 @@ import dev.sharp.core.targeting.IgnoreList;
 import dev.sharp.core.targeting.TargetCandidate;
 import dev.sharp.core.targeting.TargetTier;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.Predicate;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -18,6 +20,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.decoration.ArmorStand;
@@ -67,12 +70,13 @@ final class GameAccess {
      * Every living entity close enough to matter: players, mannequins and fake-player bodies, armor stands, animals and mobs, all
      * with their real bounding boxes. The local player is never one, nor is anything dead, dying or in spectator mode, anything the
      * game's own crosshair cannot pick (a marker armor stand), anything on the config's ignore list, or (by default) your own tamed
-     * pets. With {@code requireMarker} on, only entities carrying the practice marker are returned.
+     * pets. With {@code requireMarker} on, only entities carrying the marker are returned.
      */
     static List<TargetCandidate> candidates(ClientLevel level, LocalPlayer player, SharpConfig config) {
         double reach = config.range * (1.0 + config.retainMarginPercent / 100.0) + 2.0;
         V3 eye = eyePosition(player);
-        IgnoreList ignored = config.ignoreList();
+        IgnoreList ignored = ignoreList(config);
+        Map<EntityType<?>, Boolean> ignoredType = new IdentityHashMap<>();
         List<TargetCandidate> out = new ArrayList<>();
         for (Entity entity : level.entitiesForRendering()) { // VERIFIED (ClientEntityLifecycleTests)
             if (entity == player || !(entity instanceof LivingEntity living)) {
@@ -82,13 +86,13 @@ final class GameAccess {
             if (entity.isRemoved() || !living.isAlive() || living.isDeadOrDying() || entity.isSpectator()) { // isRemoved VERIFIED
                 continue;
             }
-            if (!entity.isPickable() || ignored.ignores(typeId(entity))) { // an armor stand with the marker flag cannot be hit
+            if (!entity.isPickable() || ignoredType.computeIfAbsent(entity.getType(), t -> ignored.ignores(typeId(entity)))) { // an armor stand with the marker flag cannot be hit
                 continue;
             }
             if (config.ignoreOwnPets && entity instanceof TamableAnimal pet && pet.isOwnedBy(player)) {
                 continue;
             }
-            if (config.requireMarker && !isPracticeEntity(entity, config.practiceMarker)) {
+            if (config.requireMarker && !carriesMarker(entity, config.practiceMarker)) {
                 continue;
             }
             Box box = boundingBox(entity);
@@ -99,6 +103,21 @@ final class GameAccess {
             out.add(new TargetCandidate(entity.getId(), label(entity), box, living.getYHeadRot(), living.isBlocking(), tierOf(entity))); // getId VERIFIED
         }
         return out;
+    }
+
+    private static List<String> ignoreListSource = List.of();
+    private static IgnoreList ignoreListCompiled = IgnoreList.NONE;
+
+    /**
+     * The config's ignore list, compiled. Compiling builds a pattern per entry, so it is done again only when the entries change and not
+     * on every frame. Only the render thread calls this.
+     */
+    private static IgnoreList ignoreList(SharpConfig config) {
+        if (!config.ignoredEntityTypes.equals(ignoreListSource)) {
+            ignoreListSource = List.copyOf(config.ignoredEntityTypes);
+            ignoreListCompiled = IgnoreList.of(ignoreListSource);
+        }
+        return ignoreListCompiled;
     }
 
     /** The entity's type id as the config spells it, for example {@code minecraft:villager}. */
@@ -119,7 +138,7 @@ final class GameAccess {
 
     /**
      * Every entity that an attack could land on instead of the target: anything the game lets the crosshair pick (mobs, players,
-     * armor stands, boats), practice marker or not. Only boxes are needed, so nothing about them is stored.
+     * armor stands, boats), marker or not. Only boxes are needed, so nothing about them is stored.
      */
     static List<TargetCandidate> blockers(ClientLevel level, LocalPlayer player, SharpConfig config) {
         double reach = config.range * (1.0 + config.retainMarginPercent / 100.0) + 2.0;
@@ -142,7 +161,7 @@ final class GameAccess {
      * (fake player, mannequin) is also one when its displayed name starts with the marker, since those carry their name as a profile
      * name and not as a custom name.
      */
-    static boolean isPracticeEntity(Entity entity, String marker) {
+    static boolean carriesMarker(Entity entity, String marker) {
         String m = marker.toLowerCase(Locale.ROOT);
         Component custom = entity.getCustomName(); // UNVERIFIED: Entity#getCustomName()
         if (custom != null && custom.getString().toLowerCase(Locale.ROOT).startsWith(m)) {

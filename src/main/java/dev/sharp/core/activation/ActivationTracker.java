@@ -10,8 +10,8 @@ import java.util.function.Consumer;
  *
  * <ul>
  *   <li>It is active only while the key is physically held <em>and</em> nothing blocks it. Blockers are:
- *       no connection, a different world or player than at activation, a dead player, the practice
- *       gate being closed, the window not having focus and a screen being open.
+ *       no connection, a different world or player than at activation, a dead player, the feature
+ *       being switched off, the window not having focus and a screen being open.
  *   <li>The moment any of those stops being true it deactivates, and {@link Listener#onDeactivated} fires
  *       exactly once with the reason.
  *   <li>Activation needs a <em>fresh press</em> while nothing is blocking ("armed"). The tracker only arms
@@ -47,7 +47,7 @@ public final class ActivationTracker {
      * @param screenOpen   whether any screen (inventory, pause, chat, ...) is open
      * @param playerAlive  whether the local player exists and is alive
      * @param connected    whether there is a player and a world at all
-     * @param gateOpen     whether the single-player practice gate currently allows the feature
+     * @param gateOpen     whether the feature is connected and enabled in the config
      * @param worldToken   identity of the current world; any change means a world transition
      * @param playerToken  identity of the current player entity; any change means a respawn or reconnect
      */
