@@ -34,7 +34,7 @@ public record Selection(
         ACQUIRED,
         /** The previous target is still valid and in limits, so it was kept. */
         KEPT,
-        /** The previous target became invalid or left the limits and another one replaced it. */
+        /** The previous target became invalid or left the limits and another one replaced it. {@link TargetLock} never reports this. */
         SWITCHED,
         /** The previous target became invalid or left the limits and nothing replaced it. */
         LOST

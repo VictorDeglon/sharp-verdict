@@ -58,8 +58,6 @@ public final class SharpClient implements ClientModInitializer {
         DebugOverlay.register(runtime, configs);
         CueOverlay.register(runtime);
 
-        LOGGER.info("SHARP loaded. Hold the lock key (default G) in a single-player world; "
-                + "practice entities are those named \"{}...\" or in a team called \"{}\".",
-                configs.get().practiceMarker, configs.get().practiceMarker);
+        LOGGER.info("SHARP loaded. Hold the lock key (default G) to lock onto the best target in range.");
     }
 }

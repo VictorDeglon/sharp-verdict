@@ -3,7 +3,7 @@
     "id": "sharp",
     "version": "${version}",
     "name": "SHARP",
-    "description": "Hold-to-lock targeting prototype for single-player practice: target selection, hitbox outline and an optional smoothed practice camera.",
+    "description": "Hold-to-lock targeting: picks players first, then armor stands, then animals, outlines the hitbox and can steer the camera onto the target.",
     "authors": [
         "Victor Deglon"
     ],

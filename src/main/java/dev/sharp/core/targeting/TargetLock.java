@@ -5,10 +5,16 @@ import java.util.List;
 /**
  * Holds the current lock between frames. All state is dropped by {@link #clear()}, which the controller
  * calls whenever the feature switches off, the player dies, the world changes or the connection ends.
+ *
+ * <p>The first target taken is the target for the rest of the hold. If it dies, leaves range or the cone, or is hidden, the lock
+ * reports nothing and waits: it never moves to another entity, and picks the same one up again if it becomes valid. Another
+ * entity can only be locked after the key is released and pressed again, which is what {@link #clear()} marks.
  */
 public final class TargetLock {
     private final TargetSelector selector = new TargetSelector();
 
+    /** The entity this hold is committed to, valid or not right now. */
+    private int committedId = Selection.NO_TARGET;
     private int currentId = Selection.NO_TARGET;
     private long lockedAtNanos;
     private int switches;
@@ -21,16 +27,16 @@ public final class TargetLock {
             LineOfSight lineOfSight,
             long nowNanos) {
 
-        Selection s = selector.select(eye, candidates, currentId, settings, lineOfSight);
-        switch (s.kind()) {
-            case ACQUIRED -> lockedAtNanos = nowNanos;
-            case SWITCHED -> {
-                lockedAtNanos = nowNanos;
-                switches++;
-            }
-            default -> {
-                // KEPT keeps the original timestamp, NONE and LOST have nothing to timestamp.
-            }
+        Selection s = selector.select(eye, candidates, committedId, settings, lineOfSight);
+        if (committedId != Selection.NO_TARGET && s.targetId() != committedId) {
+            // The committed entity is not usable this frame. The selector would offer a replacement; this lock refuses it.
+            s = Selection.none(
+                    currentId != Selection.NO_TARGET ? Selection.Kind.LOST : Selection.Kind.NONE,
+                    s.seen(), s.eligible(), s.eligibleIds());
+        }
+        if (s.kind() == Selection.Kind.ACQUIRED) {
+            lockedAtNanos = nowNanos;
+            committedId = s.targetId();
         }
         currentId = s.hasTarget() ? s.targetId() : Selection.NO_TARGET;
         last = s;
@@ -39,12 +45,14 @@ public final class TargetLock {
 
     /** Forgets the target and all counters. */
     public void clear() {
+        committedId = Selection.NO_TARGET;
         currentId = Selection.NO_TARGET;
         lockedAtNanos = 0L;
         switches = 0;
         last = Selection.empty();
     }
 
+    /** True while a target is locked and usable this frame. */
     public boolean hasTarget() {
         return currentId != Selection.NO_TARGET;
     }
@@ -53,11 +61,16 @@ public final class TargetLock {
         return currentId;
     }
 
+    /** True once a target was taken during this hold, even if it is out of reach right now. */
+    public boolean isCommitted() {
+        return committedId != Selection.NO_TARGET;
+    }
+
     public long lockedAtNanos() {
         return lockedAtNanos;
     }
 
-    /** Number of times the lock moved from one entity to another since the last {@link #clear()}. */
+    /** Always 0 now that a hold never moves to a second entity; the debug panel still prints it. */
     public int switchCount() {
         return switches;
     }

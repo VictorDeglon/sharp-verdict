@@ -32,9 +32,14 @@ public final class SharpConfig {
     public boolean enabled = true;
 
     /**
-     * Which entities count as practice entities. An entity is one when its custom name starts with this
-     * text (case-insensitive) or it is in a scoreboard team with exactly this name. Other entities are
-     * never targeted, whatever the other settings say.
+     * When true, only entities carrying the marker can be targeted, and everything else is ignored. When false (the default) every
+     * living entity in range is a candidate, and {@link #practiceMarker} is not consulted.
+     */
+    public boolean requireMarker = false;
+
+    /**
+     * Which entities carry the marker, when {@link #requireMarker} is on. An entity does when its custom name starts with this
+     * text (case-insensitive) or it is in a scoreboard team with exactly this name.
      */
     public String practiceMarker = DEFAULT_MARKER;
 
@@ -61,7 +66,19 @@ public final class SharpConfig {
     /** Aim at a part of the target that another hitbox does not cover. */
     public boolean aimAvoidCover = true;
 
-    /** Degrees of angular penalty per block of distance, 0..5. Keeps the crosshair the main criterion. */
+    /**
+     * Rank candidates by distance with a handicap per kind of entity (players, then armor stands, then everything else) instead of by
+     * the crosshair. When false, the crosshair decides and {@link #armorStandPenalty} and {@link #otherPenalty} are unused.
+     */
+    public boolean priorityTiers = true;
+
+    /** Blocks added to an armor stand's distance when ranking, 0..64. A player is chosen over an armor stand unless it is this much farther. */
+    public double armorStandPenalty = 3.0;
+
+    /** The same for every other entity (animals), 0..64. Never below {@link #armorStandPenalty}. */
+    public double otherPenalty = 6.0;
+
+    /** Degrees of angular penalty per block of distance, 0..5. Keeps the crosshair the main criterion when {@link #priorityTiers} is off. */
     public double distanceWeight = 0.05;
 
     /** Extra slack in percent for keeping an existing lock at the range/angle edge, 0..50. */
@@ -171,6 +188,8 @@ public final class SharpConfig {
         fovDegrees = clamp(fovDegrees, 1.0, 360.0, 140.0);
         aimHeight = clamp(aimHeight, 0.0, 1.0, 0.3);
         distanceWeight = clamp(distanceWeight, 0.0, 5.0, 0.05);
+        armorStandPenalty = clamp(armorStandPenalty, 0.0, 64.0, 3.0);
+        otherPenalty = Math.max(armorStandPenalty, clamp(otherPenalty, 0.0, 64.0, 6.0));
         retainMarginPercent = clamp(retainMarginPercent, 0.0, 50.0, 0.0);
 
         cameraSensitivity = clamp(cameraSensitivity, 0.1, 5.0, 2.0);
@@ -208,6 +227,7 @@ public final class SharpConfig {
     public static SharpConfig migratedFrom(SharpConfig old) {
         SharpConfig fresh = new SharpConfig();
         fresh.enabled = old.enabled;
+        fresh.requireMarker = true; // the first releases only ever targeted marked entities, so an upgrade keeps that
         fresh.practiceMarker = old.practiceMarker;
         fresh.cameraTrackingEnabled = old.cameraTrackingEnabled;
         fresh.debugOverlay = old.debugOverlay;
@@ -220,7 +240,7 @@ public final class SharpConfig {
     public TargetingSettings targeting() {
         return new TargetingSettings(
                 range, fovDegrees, aimHeight, distanceWeight, retainMarginPercent, requireLineOfSight,
-                aimFeetFirst, aimShieldRear, aimAvoidCover);
+                aimFeetFirst, aimShieldRear, aimAvoidCover, priorityTiers, armorStandPenalty, otherPenalty);
     }
 
     public AimSettings aim() {

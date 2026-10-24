@@ -20,6 +20,7 @@ import dev.sharp.core.targeting.AimPointPicker;
 import dev.sharp.core.targeting.Exposure;
 import dev.sharp.core.targeting.Selection;
 import dev.sharp.core.targeting.TargetCandidate;
+import dev.sharp.core.targeting.TargetTier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
@@ -123,6 +124,10 @@ class SharpControllerTest {
         config.maxRotationAcceleration = 1800.0;
         config.maxStepPerFrame = 20.0;
         config.rampSeconds = 0.25;
+    }
+
+    private static TargetCandidate tier(TargetCandidate c, TargetTier tier) {
+        return new TargetCandidate(c.id(), c.label(), c.box(), c.facingYaw(), c.shieldUp(), tier);
     }
 
     private static TargetCandidate dummy(int id, double x, double z) {
@@ -290,7 +295,7 @@ class SharpControllerTest {
     }
 
     @Test
-    void aReappearingTargetIsAcquiredAndFadesInAgain() {
+    void aTargetThatComesBackIsPickedUpAgainAndFadesIn() {
         gentleTuning();
         config.cameraTrackingEnabled = true;
         w.candidates.add(dummyAtYaw(1, 40, 10));
@@ -300,9 +305,10 @@ class SharpControllerTest {
         w.candidates.clear();
         w.frames(5);
 
-        w.candidates.add(dummyAtYaw(2, w.yaw + 60, 10));
+        w.candidates.add(dummyAtYaw(1, w.yaw + 60, 10));
         FrameResult back = w.frame();
-        assertEquals(Selection.Kind.ACQUIRED, back.selection().kind());
+        assertEquals(1, back.selection().targetId());
+        assertTrue(back.aim() != null, "the camera follows it again");
         // Time keeps running while there is no target, so the first step is tiny rather than exactly zero.
         assertTrue(back.aim().ramp() < 0.05, "fade-in did not restart: ramp=" + back.aim().ramp());
         assertTrue(Math.abs(back.aim().deltaYaw()) < 0.1, "first step after a loss: " + back.aim().deltaYaw());
@@ -310,16 +316,62 @@ class SharpControllerTest {
     }
 
     @Test
-    void switchingTargetsKeepsTheCameraMovingSmoothly() {
+    void anotherEntityIsNeverTakenWhileTheKeyStaysDownAndIsTakenOnTheNextPress() {
+        gentleTuning();
+        config.cameraTrackingEnabled = true;
+        w.candidates.add(dummyAtYaw(1, 40, 10));
+        w.frame();
+        w.key = true;
+        w.frames(60);
+        assertEquals(1, controller.targetId());
+
+        w.candidates.clear();
+        w.candidates.add(dummyAtYaw(2, w.yaw + 10, 6)); // close and nearly dead ahead: the best target by any measure
+        FrameResult r = w.frame();
+        assertFalse(r.selection().hasTarget());
+        assertNull(r.aim());
+        double yaw = w.yaw;
+        w.frames(120);
+        assertEquals(yaw, w.yaw, 0.0, "the camera does not turn to the other entity");
+        assertFalse(controller.hasTarget());
+        assertTrue(controller.isActive(), "still held, still on, just with nothing to follow");
+
+        FrameResult again = w.pressFresh();
+        assertEquals(Selection.Kind.ACQUIRED, again.selection().kind());
+        assertEquals(2, again.selection().targetId());
+        assertEquals(0, controller.switchCount());
+        assertEquals(0.0, again.aim().deltaYaw(), 0.0, "camera fade-in restarts");
+    }
+
+    @Test
+    void aBetterPlacedPlayerNeverStealsTheLockFromTheFirstEntity() {
+        w.candidates.add(tier(dummyAtYaw(1, 20, 10), TargetTier.OTHER));
+        w.frame();
+        w.key = true;
+        w.frames(5);
+        assertEquals(1, controller.targetId());
+
+        w.candidates.add(tier(dummyAtYaw(2, 0, 3), TargetTier.PLAYER));
+        w.frames(60);
+        assertEquals(1, controller.targetId(), "even a player right in front of you waits for the next press");
+    }
+
+    @Test
+    void whenTheTargetIsGoneTheCameraStopsAndTheNextPressGlidesToTheOtherOne() {
         config.cameraTrackingEnabled = true;
         w.candidates.add(dummyAtYaw(1, 30, 10));
         w.candidates.add(dummyAtYaw(2, -100, 12));
         w.frame();
         w.key = true;
-        w.frames(120); // settled on target 1 (it is the one nearer the crosshair)
+        w.frames(120); // settled on target 1 (it is the nearer one)
         assertEquals(1, controller.targetId());
 
         w.candidates.removeIf(c -> c.id() == 1);
+        double stopped = w.yaw;
+        w.frames(60);
+        assertEquals(stopped, w.yaw, 0.0, "no motion toward target 2 while the key is still held");
+
+        w.pressFresh();
         double dt = FRAME;
         double previousRate = 0;
         double maxRateJump = 0;
@@ -331,10 +383,18 @@ class SharpControllerTest {
             previousRate = rate;
         }
         assertEquals(2, r.selection().targetId());
-        assertEquals(1, controller.switchCount());
         assertTrue(maxRateJump <= config.maxRotationAcceleration * dt + 1.0e-6,
                 "camera speed jumped by " + maxRateJump + " deg/s in one frame");
         assertEquals(-100.0, w.yaw, 1.0);
+    }
+
+    @Test
+    void aPlayerIsLockedBeforeASheepThatIsAlmostAsNear() {
+        w.candidates.add(tier(dummyAtYaw(1, 0, 2.0), TargetTier.OTHER));
+        w.candidates.add(tier(dummyAtYaw(2, 15, 2.5), TargetTier.PLAYER));
+        w.frame();
+        w.key = true;
+        assertEquals(2, w.frame().selection().targetId());
     }
 
     // ---- world transitions ----------------------------------------------------------------------
@@ -774,6 +834,7 @@ class SharpControllerTest {
 
     /** The player at the origin looks level; the real target is straight ahead, a wide plank hangs in front of it, off to one side of the crosshair. */
     private void plankInFrontOfTheTarget(double plankMinX, double plankMaxX) {
+        config.priorityTiers = false; // these tests are about cover: the target is the one on the crosshair, not the nearer plank
         w.candidates.add(new TargetCandidate(1, "sharp 1", new Box(-0.3, 0.0, 11.7, 0.3, 1.8, 12.3)));
         w.candidates.add(new TargetCandidate(2, "sharp 2", new Box(plankMinX, 0.0, 5.0, plankMaxX, 3.0, 6.0)));
         w.pitch = 5.0;

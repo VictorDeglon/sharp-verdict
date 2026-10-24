@@ -209,4 +209,42 @@ class SharpConfigTest {
         assertEquals(64.0, fresh.range);
         assertEquals("#4D8DFF", fresh.hitboxMainColor);
     }
+
+    @Test
+    void everyEntityIsATargetByDefaultAndTheTiersAreOn() {
+        SharpConfig c = new SharpConfig();
+        assertTrue(!c.requireMarker);
+        assertTrue(c.priorityTiers);
+        TargetingSettings t = c.targeting();
+        assertTrue(t.tiered());
+        assertEquals(3.0, t.armorStandPenalty());
+        assertEquals(6.0, t.otherPenalty());
+    }
+
+    @Test
+    void animalsAreNeverPreferredOverArmorStands() {
+        SharpConfig c = new SharpConfig();
+        c.armorStandPenalty = 10;
+        c.otherPenalty = 2;
+        c.sanitize();
+        assertEquals(10.0, c.armorStandPenalty);
+        assertEquals(10.0, c.otherPenalty, "raised to the armor stand handicap");
+
+        c.armorStandPenalty = -5;
+        c.otherPenalty = 1e9;
+        c.sanitize();
+        assertEquals(0.0, c.armorStandPenalty);
+        assertEquals(64.0, c.otherPenalty);
+
+        c.armorStandPenalty = Double.NaN;
+        c.otherPenalty = Double.NaN;
+        c.sanitize();
+        assertEquals(3.0, c.armorStandPenalty);
+        assertEquals(6.0, c.otherPenalty);
+    }
+
+    @Test
+    void anUpgradeFromTheFirstReleaseStillOnlyTargetsMarkedEntities() {
+        assertTrue(SharpConfig.migratedFrom(new SharpConfig()).requireMarker);
+    }
 }

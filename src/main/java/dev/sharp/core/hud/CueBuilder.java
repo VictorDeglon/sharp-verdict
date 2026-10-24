@@ -33,7 +33,8 @@ public final class CueBuilder {
     }
 
     /**
-     * @param marker      the name prefix that makes an entity a practice entity, to tell the player what to name a mob
+     * @param marker      the name prefix an entity must carry to be targeted, to tell the player what to name a mob; null or blank when
+     *                    every entity counts
      * @param range       the lock range in blocks
      * @param style       how loud to be; {@link CueStyle#OFF} says nothing at all
      * @param fullSeconds how long {@link CueStyle#AUTO} keeps the full text after the key goes down
@@ -60,8 +61,10 @@ public final class CueBuilder {
             }
             return new Cues(List.of(
                     line(seg("NO TARGET", WARN)),
-                    line(seg(String.format(Locale.ROOT, "needs a mob named \"%s...\" within %d m, in front of you",
-                            marker, Math.round(range)), GREY)),
+                    line(seg(marker == null || marker.isBlank()
+                            ? String.format(Locale.ROOT, "needs a target within %d m, in front of you", Math.round(range))
+                            : String.format(Locale.ROOT, "needs a mob named \"%s...\" within %d m, in front of you",
+                                    marker, Math.round(range)), GREY)),
                     legend(colors)), true);
         }
 

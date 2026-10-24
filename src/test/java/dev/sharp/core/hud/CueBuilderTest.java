@@ -88,6 +88,14 @@ class CueBuilderTest {
     }
 
     @Test
+    void noTargetDoesNotMentionANameWhenNoMarkerIsRequired() {
+        Cues c = CueBuilder.build(snap(true, true, "OPEN", Selection.empty(), false, Exposure.OPEN, false, false, 0, 0),
+                colors, null, 64, CueStyle.AUTO, 3.0);
+        assertEquals("NO TARGET", c.headline());
+        assertEquals("needs a target within 64 m, in front of you", c.lines().get(1).plain());
+    }
+
+    @Test
     void aPlainLockIsBlueWithNameAndDistance() {
         Cues c = cues(snap(true, true, "OPEN", locked(), false, Exposure.OPEN, false, false, 0, 0));
         assertFalse(c.warning());

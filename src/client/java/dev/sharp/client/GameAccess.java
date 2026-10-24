@@ -5,6 +5,7 @@ import dev.sharp.core.math.Box;
 import dev.sharp.core.math.V3;
 import dev.sharp.core.targeting.LineOfSight;
 import dev.sharp.core.targeting.TargetCandidate;
+import dev.sharp.core.targeting.TargetTier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -16,6 +17,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
@@ -41,23 +43,6 @@ final class GameAccess {
     private GameAccess() {
     }
 
-    // ---- the single-player practice gate -----------------------------------------------------------
-
-    /**
-     * Why the practice gate is closed, or null when it is open. The feature only runs in a world hosted by
-     * this very client (the integrated server) and never once that world is opened to other players.
-     */
-    static String practiceGateClosedReason(Minecraft mc) {
-        var server = mc.getSingleplayerServer(); // VERIFIED (RecipeSyncClientTest)
-        if (server == null) {
-            return "not a single-player world";
-        }
-        if (server.isPublished()) { // UNVERIFIED: IntegratedServer#isPublished()
-            return "world is open to LAN";
-        }
-        return null;
-    }
-
     // ---- player state ------------------------------------------------------------------------------
 
     static boolean windowActive(Minecraft mc) {
@@ -73,12 +58,12 @@ final class GameAccess {
         return new V3(eye.x, eye.y, eye.z); // VERIFIED (LevelRenderEventsTests uses .x/.y/.z)
     }
 
-    // ---- practice entities -------------------------------------------------------------------------
+    // ---- target entities ---------------------------------------------------------------------------
 
     /**
-     * Every living entity that carries the practice marker and is close enough to matter: mobs, armor stands, mannequins and
-     * player-like bodies (fake-player bots) alike, all with their real bounding boxes. The player is never one. Entities without
-     * the marker are never returned, so nothing else can ever be targeted.
+     * Every living entity close enough to matter: players, mannequins and fake-player bodies, armor stands, animals and mobs, all
+     * with their real bounding boxes. The local player is never one, nor is anything dead, dying or in spectator mode. With
+     * {@code requireMarker} on, only entities carrying the practice marker are returned.
      */
     static List<TargetCandidate> candidates(ClientLevel level, LocalPlayer player, SharpConfig config) {
         double reach = config.range * (1.0 + config.retainMarginPercent / 100.0) + 2.0;
@@ -88,10 +73,11 @@ final class GameAccess {
             if (entity == player || !(entity instanceof LivingEntity living)) {
                 continue;
             }
-            if (entity.isRemoved() || !living.isAlive()) { // isRemoved VERIFIED
+            // A spectator is in the world but not part of it, and a dying entity is a corpse for a second: neither is something to aim at.
+            if (entity.isRemoved() || !living.isAlive() || living.isDeadOrDying() || entity.isSpectator()) { // isRemoved VERIFIED
                 continue;
             }
-            if (!isPracticeEntity(entity, config.practiceMarker)) {
+            if (config.requireMarker && !isPracticeEntity(entity, config.practiceMarker)) {
                 continue;
             }
             Box box = boundingBox(entity);
@@ -99,9 +85,20 @@ final class GameAccess {
                 continue;
             }
             // Head yaw and the raised-shield state decide where the back of the target is; both are plain reads on LivingEntity.
-            out.add(new TargetCandidate(entity.getId(), label(entity), box, living.getYHeadRot(), living.isBlocking())); // getId VERIFIED
+            out.add(new TargetCandidate(entity.getId(), label(entity), box, living.getYHeadRot(), living.isBlocking(), tierOf(entity))); // getId VERIFIED
         }
         return out;
+    }
+
+    /** Players and player-shaped bodies first, then armor stands, then everything else. */
+    static TargetTier tierOf(Entity entity) {
+        if (entity instanceof Avatar) {
+            return TargetTier.PLAYER;
+        }
+        if (entity instanceof ArmorStand) {
+            return TargetTier.ARMOR_STAND;
+        }
+        return TargetTier.OTHER;
     }
 
     /**

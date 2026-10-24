@@ -39,7 +39,7 @@ Each is tagged `UNVERIFIED` in `GameAccess.java` from before the first compile. 
 | Symbol | What it is for | Exercised in the real game |
 | --- | --- | --- |
 | `Minecraft#isWindowActive()` | Part of "cannot stay active after focus loss". | Yes, read every frame. |
-| `IntegratedServer#isPublished()` | Is the single-player world open to LAN? Part of the practice gate. | Yes, the LAN phase publishes the world and checks the gate closes. |
+| `IntegratedServer#isPublished()` | No longer used. It closed the feature in a world opened to LAN; there is no such gate now. | The LAN phase of the game test publishes the world and checks the feature still activates. |
 | `Entity#isAlive()` | Skip dead entities and a dead local player. | Yes, every candidate scan. |
 | `Entity#getCustomName()` | Practice marker by name. | Yes, the dummies and the mannequin are matched by it. |
 | `Team#getName()` (via `Entity#getTeam()`) | Practice marker by team. | **No.** Compiles, never run. |
@@ -56,6 +56,8 @@ Each is tagged `UNVERIFIED` in `GameAccess.java` from before the first compile. 
 | `LivingEntity#getYHeadRot()` | Which way a target faces, for the back of a shield. | Compiled and called for every target, the value is only used with a shield up. |
 | `LivingEntity#isBlocking()` | Whether a target holds a shield up. | **Partly.** It is called for every target and returned false. The true branch needs something that raises a shield, which vanilla mobs do not. The shield maths itself is unit tested. |
 | `Avatar` (player-shaped entities) | Match player-like bodies by their displayed name too. | The mannequin is matched, by its custom name. The displayed-name fallback is compiled only. |
+| `Avatar` / `net.minecraft.world.entity.decoration.ArmorStand` (`instanceof`) | Sort a candidate into the player tier, the armor stand tier, or the rest. | Yes: the tier scenario locks a mannequin before a nearer sheep. Both class names were checked in the 26.3 jar. |
+| `Entity#isSpectator()`, `LivingEntity#isDeadOrDying()` on candidates | Skip spectators and corpses, which matter on a server. | Compiled and called for every candidate; a spectator is not exercised. |
 | `GuiGraphicsExtractor#fill`, `#guiWidth`, `#guiHeight`, `#pose()` and `Matrix3x2fStack#pushMatrix / translate / scale / popMatrix`, `Font#width(String)` | The status text above the hotbar. | Yes, seen in the screenshots. |
 
 ## What a screenshot settled, and what still needs a human

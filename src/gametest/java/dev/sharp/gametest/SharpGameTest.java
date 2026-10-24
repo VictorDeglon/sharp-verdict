@@ -21,7 +21,8 @@ import net.minecraft.world.entity.player.Player;
 /**
  * Runs the real game with the mod in it and plays the feature through: a named dummy to the side, an unnamed decoy dead ahead and
  * closer, and a second named dummy far to the other side. Then what the held weapon reaches (bare hands, then a spear), a
- * player-shaped mannequin, another entity standing in the way, and standing inside the target. Every check is recorded, all of
+ * player-shaped mannequin, another entity standing in the way, and standing inside the target. Last come the priority tiers (a
+ * mannequin is locked before a nearer sheep, and the lock does not move on when it dies) and a world opened to LAN. Every check is recorded, all of
  * them run, and the test fails at the end if any failed, so one slow run on a software GPU shows everything that is wrong.
  */
 public final class SharpGameTest implements FabricClientGameTest {
@@ -103,6 +104,9 @@ public final class SharpGameTest implements FabricClientGameTest {
         try (TestSingleplayerContext world = ctx.worldBuilder().create()) {
             ctx.waitTicks(40);
             check(ctx.computeOnClient(mc -> SharpTestHooks.started()), "the mod started");
+            // The first half of this test checks that unnamed entities are ignored, which is the marker requirement; the tier
+            // and no-switch scenario near the end turns it off again.
+            ctx.runOnClient(mc -> SharpTestHooks.setRequireMarker(true));
 
             // A stone platform in the sky: nothing in the way, so line of sight is clear and the picture is simple.
             TestServerContext server = world.getServer();
@@ -128,7 +132,7 @@ public final class SharpGameTest implements FabricClientGameTest {
             ctx.getInput().lookAt(0f, 0f);
             ctx.waitTicks(5);
             check(!ctx.computeOnClient(mc -> SharpTestHooks.active()), "idle: not active before the key is held");
-            check(ctx.computeOnClient(mc -> SharpTestHooks.gate()).startsWith("OPEN"), "the practice gate is open in a plain single-player world: "
+            check(ctx.computeOnClient(mc -> SharpTestHooks.gate()).startsWith("OPEN"), "the feature is open in a plain single-player world: "
                     + ctx.computeOnClient(mc -> SharpTestHooks.gate()));
             ctx.takeScreenshot("00-idle");
 
@@ -393,17 +397,52 @@ public final class SharpGameTest implements FabricClientGameTest {
             ctx.getInput().releaseKey(InputConstants.KEY_G);
             ctx.waitTicks(5);
 
+            // ---- priority tiers and the lock that does not move ------------------------------------------
+            ctx.runOnClient(mc -> SharpTestHooks.setRequireMarker(false));
+            server.runCommand("kill @e[type=!minecraft:player]");
+            server.runCommand("tp @a 0.5 200 0.5 0 0");
+            ctx.waitTicks(10);
+            // A sheep about 2.5 blocks away and a player-shaped mannequin about 0.7 blocks behind it.
+            server.runCommand("summon minecraft:sheep 0.5 200 3.5 {CustomName:\"tier sheep\",NoAI:1b,NoGravity:1b}");
+            server.runCommand("summon minecraft:mannequin 0.5 200 4.2 {CustomName:\"tier mannequin\"}");
+            ctx.waitTicks(20);
+            ctx.getInput().lookAt(0f, 0f);
+            ctx.getInput().holdKey(InputConstants.KEY_G);
+            check(until(ctx, 80, SharpTestHooks::active), "holding G activates with no marker on anything");
+            ctx.waitTicks(10);
+            String tierLabel = ctx.computeOnClient(mc -> SharpTestHooks.targetLabel());
+            check(tierLabel.equals("tier mannequin"), "the player-shaped body is locked although the sheep is nearer: '" + tierLabel + "'");
+            ctx.takeScreenshot("08-player-before-sheep");
+
+            server.runCommand("kill @e[type=minecraft:mannequin]");
+            ctx.waitTicks(40);
+            check(ctx.computeOnClient(mc -> SharpTestHooks.active()), "the key is still held, so it is still on");
+            check(ctx.computeOnClient(mc -> SharpTestHooks.targetLabel()).isEmpty()
+                    && !ctx.computeOnClient(mc -> SharpTestHooks.sceneHasTarget()),
+                    "with its target dead it does not move to the sheep next to it: '" + ctx.computeOnClient(mc -> SharpTestHooks.targetLabel()) + "'");
+
+            ctx.getInput().releaseKey(InputConstants.KEY_G);
+            check(until(ctx, 40, () -> !SharpTestHooks.active()), "releasing G deactivates");
+            ctx.getInput().holdKey(InputConstants.KEY_G);
+            check(until(ctx, 80, SharpTestHooks::active), "pressing G again activates");
+            ctx.waitTicks(10);
+            String nextLabel = ctx.computeOnClient(mc -> SharpTestHooks.targetLabel());
+            check(nextLabel.equals("tier sheep"), "and now it locks the sheep: '" + nextLabel + "'");
+            ctx.getInput().releaseKey(InputConstants.KEY_G);
+            ctx.waitTicks(5);
+
             // ---- a world opened to LAN -------------------------------------------------------------------
+            // There is no gate for other players joining any more: the lock and the camera work the same.
             server.runCommand("publish");
             ctx.waitTicks(30);
             boolean published = ctx.computeOnClient(mc -> mc.getSingleplayerServer() != null && mc.getSingleplayerServer().isPublished());
             note("the world is open to LAN: " + published);
             if (published) {
                 ctx.getInput().holdKey(InputConstants.KEY_G);
-                ctx.waitTicks(20);
-                check(!ctx.computeOnClient(mc -> SharpTestHooks.active()), "an open-to-LAN world never activates");
-                check(ctx.computeOnClient(mc -> SharpTestHooks.gate()).contains("LAN"), "and the panel says why: " + ctx.computeOnClient(mc -> SharpTestHooks.gate()));
-                check(ctx.computeOnClient(mc -> SharpTestHooks.lastHint()).contains("LAN"), "and so does the on-screen message: '" + ctx.computeOnClient(mc -> SharpTestHooks.lastHint()) + "'");
+                check(until(ctx, 80, SharpTestHooks::active), "an open-to-LAN world still activates");
+                ctx.waitTicks(10);
+                check(ctx.computeOnClient(mc -> SharpTestHooks.gate()).startsWith("OPEN"), "and the panel says it is open: " + ctx.computeOnClient(mc -> SharpTestHooks.gate()));
+                check(ctx.computeOnClient(mc -> SharpTestHooks.targetLabel()).equals("tier sheep"), "and it locks the sheep");
                 ctx.getInput().releaseKey(InputConstants.KEY_G);
             } else {
                 note("SKIP the LAN check: the world could not be opened to LAN in this environment");

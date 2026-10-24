@@ -45,6 +45,13 @@ final class SharpRuntime {
     private long latestNanos;
     private boolean faulted;
 
+    /**
+     * Counts client ticks, and is what the outline and aim point interpolate against. The level's own game time is not used for that:
+     * a server resends it every second or so and it can jump or step back, which restarted the interpolation and made the aim point
+     * hitch once a second on a server.
+     */
+    private long clientTick;
+
     // The first warning shown during the current key press.
     private boolean wasDown;
     private String lastHint = "";
@@ -74,11 +81,7 @@ final class SharpRuntime {
             latest = result;
             latestNanos = now;
 
-            // Selection and hitbox visualization can run on a multiplayer client using the existing
-            // practice-marker filter. Automated camera movement remains limited to a local practice world.
-            if (GameAccess.practiceGateClosedReason(mc) == null) {
-                camera.apply(mc, result.aim());
-            }
+            camera.apply(mc, result.aim());
             hints(sample, cues());
         } catch (RuntimeException e) {
             fault(e);
@@ -86,6 +89,7 @@ final class SharpRuntime {
     }
 
     void onTick(Minecraft mc) {
+        clientTick++;
         if (faulted) {
             return;
         }
@@ -140,7 +144,7 @@ final class SharpRuntime {
             return Cues.NONE;
         }
         SharpConfig c = configs.get();
-        return CueBuilder.build(r.debug(), c.hitbox(), c.practiceMarker, c.range, c.cueStyle(), c.statusFullSeconds);
+        return CueBuilder.build(r.debug(), c.hitbox(), c.requireMarker ? c.practiceMarker : null, c.range, c.cueStyle(), c.statusFullSeconds);
     }
 
     /**
@@ -202,8 +206,6 @@ final class SharpRuntime {
         } else if (!config.enabled) {
             closedReason = "disabled in config";
         } else {
-            // Multiplayer supports selection/visualization of explicitly marked practice entities;
-            // the camera itself has a separate single-player-only gate in onFrame().
             closedReason = null;
         }
         boolean gateOpen = closedReason == null;
@@ -218,9 +220,7 @@ final class SharpRuntime {
                 level,
                 player);
         String gateText = !gateOpen ? "CLOSED: " + closedReason
-                : GameAccess.practiceGateClosedReason(mc) == null
-                    ? "OPEN (single-player practice)"
-                    : "OPEN (multiplayer practice selection; camera tracking disabled)";
+                : mc.getSingleplayerServer() != null ? "OPEN (single-player)" : "OPEN (multiplayer)";
         return new Sample(activation, gateText);
     }
 
@@ -231,7 +231,7 @@ final class SharpRuntime {
             return null;
         }
         return new WorldView(
-                level.getGameTime(),
+                clientTick,
                 partialTick,
                 GameAccess.eyePosition(player),
                 player.getYRot(),

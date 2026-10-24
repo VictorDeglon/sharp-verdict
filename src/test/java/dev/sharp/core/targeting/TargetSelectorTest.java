@@ -293,4 +293,91 @@ class TargetSelectorTest {
         assertEquals(NONE, selector.select(
                 new EyeState(new V3(0, 1.62, 0), 180, 0), List.of(beside), NONE, settings(40, 60), LineOfSight.ALWAYS).targetId());
     }
+
+    // ---- priority tiers --------------------------------------------------------------------------
+
+    /** Distance ranking with a 3 block handicap for armor stands and 6 for everything else. */
+    private TargetingSettings tiered() {
+        return new TargetingSettings(40, 360, 0.5, 0.05, 0.0, false, true, true, true, true, 3.0, 6.0);
+    }
+
+    private static TargetCandidate of(int id, TargetTier tier, double x, double z) {
+        return new TargetCandidate(id, "t" + id, new Box(x - 0.3, 0.7, z - 0.3, x + 0.3, 2.5, z + 0.3), 0.0, false, tier);
+    }
+
+    @Test
+    void aPlayerSlightlyFartherAwayBeatsAnAnimal() {
+        TargetCandidate sheep = of(1, TargetTier.OTHER, 0, 2.0);
+        TargetCandidate player = of(2, TargetTier.PLAYER, 0, 2.5);
+        Selection s = selector.select(eye, List.of(sheep, player), NONE, tiered(), LineOfSight.ALWAYS);
+        assertEquals(2, s.targetId());
+        assertEquals(List.of(2, 1), s.eligibleIds());
+    }
+
+    @Test
+    void anAnimalMuchCloserThanAPlayerStillWins() {
+        TargetCandidate sheep = of(1, TargetTier.OTHER, 0, 3.0);
+        TargetCandidate player = of(2, TargetTier.PLAYER, 0, 15.0);
+        assertEquals(1, selector.select(eye, List.of(player, sheep), NONE, tiered(), LineOfSight.ALWAYS).targetId());
+    }
+
+    @Test
+    void armorStandsSitBetweenPlayersAndAnimals() {
+        TargetCandidate player = of(1, TargetTier.PLAYER, 0, 10.0);
+        TargetCandidate stand = of(2, TargetTier.ARMOR_STAND, 0, 9.0);
+        TargetCandidate sheep = of(3, TargetTier.OTHER, 0, 8.0);
+        Selection s = selector.select(eye, List.of(sheep, stand, player), NONE, tiered(), LineOfSight.ALWAYS);
+        assertEquals(List.of(1, 2, 3), s.eligibleIds(), "player, then armor stand, then animal, while their distances are close");
+        assertEquals(1, s.targetId());
+
+        // Without a player, the armor stand beats the animal that is only a little closer.
+        assertEquals(2, selector.select(eye, List.of(sheep, stand), NONE, tiered(), LineOfSight.ALWAYS).targetId());
+    }
+
+    @Test
+    void theSheepWinsOnceItIsMoreThanTheHandicapCloser() {
+        TargetCandidate player = of(1, TargetTier.PLAYER, 0, 12.0);
+        TargetCandidate nearSheep = of(2, TargetTier.OTHER, 0, 5.0);   // 4.7 + 6 = 10.7 against 11.7
+        TargetCandidate farSheep = of(3, TargetTier.OTHER, 0, 6.5);    // 6.2 + 6 = 12.2 against 11.7
+        assertEquals(2, selector.select(eye, List.of(player, nearSheep), NONE, tiered(), LineOfSight.ALWAYS).targetId());
+        assertEquals(1, selector.select(eye, List.of(player, farSheep), NONE, tiered(), LineOfSight.ALWAYS).targetId());
+    }
+
+    @Test
+    void withinOneTierTheNearestWinsEvenIfAFartherOneIsOnTheCrosshair() {
+        TargetCandidate aligned = of(1, TargetTier.PLAYER, 0, 14.0);
+        TargetCandidate nearButOffAxis = of(2, TargetTier.PLAYER, 3, 6.0);
+        assertEquals(2, selector.select(eye, List.of(aligned, nearButOffAxis), NONE, tiered(), LineOfSight.ALWAYS).targetId());
+    }
+
+    @Test
+    void atEqualDistanceTheOneNearerTheCrosshairWins() {
+        TargetCandidate straight = of(1, TargetTier.PLAYER, 0, 8.0);
+        TargetCandidate aside = of(2, TargetTier.PLAYER, 4, 6.93);
+        assertEquals(1, selector.select(eye, List.of(aside, straight), NONE, tiered(), LineOfSight.ALWAYS).targetId());
+    }
+
+    @Test
+    void aTierNeverOverridesTheRangeOrConeLimits() {
+        TargetingSettings cone = new TargetingSettings(20, 60, 0.5, 0.05, 0.0, false, true, true, true, true, 3.0, 6.0);
+        TargetCandidate playerBehind = of(1, TargetTier.PLAYER, 0, -4.0);
+        TargetCandidate playerFar = of(2, TargetTier.PLAYER, 0, 30.0);
+        TargetCandidate sheep = of(3, TargetTier.OTHER, 0, 12.0);
+        Selection s = selector.select(eye, List.of(playerBehind, playerFar, sheep), NONE, cone, LineOfSight.ALWAYS);
+        assertEquals(3, s.targetId(), "a player outside the cone or the range is not eligible, so the sheep is taken");
+    }
+
+    @Test
+    void crosshairModeIgnoresTheTier() {
+        TargetingSettings crosshair = new TargetingSettings(40, 360, 0.5, 0.05, 0.0, false, true, true, true, false, 3.0, 6.0);
+        TargetCandidate sheepOnTheCrosshair = of(1, TargetTier.OTHER, 0, 10.0);
+        TargetCandidate playerOffAxis = of(2, TargetTier.PLAYER, 3, 6.0);
+        assertEquals(1, selector.select(eye, List.of(playerOffAxis, sheepOnTheCrosshair), NONE, crosshair, LineOfSight.ALWAYS).targetId());
+    }
+
+    @Test
+    void theHandicapCarriesThroughTheBoxTrailCopy() {
+        TargetCandidate player = of(1, TargetTier.PLAYER, 0, 5.0);
+        assertEquals(TargetTier.PLAYER, player.withBox(new Box(0, 0, 0, 1, 1, 1)).tier());
+    }
 }

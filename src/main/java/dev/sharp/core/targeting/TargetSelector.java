@@ -14,9 +14,10 @@ import java.util.List;
  * <ol>
  *   <li>A candidate is eligible when its box is within {@code range} of the eye and the angle between
  *       the crosshair and its aim point is within half the configured field of view.
- *   <li>Among eligible candidates the best one is the one closest to the <em>crosshair</em>. Distance
- *       is only a small penalty ({@code distanceWeight}), so a nearer entity behind the player's
- *       shoulder never beats a farther one the player is looking at.
+ *   <li>Among eligible candidates the best one is, in crosshair mode, the one closest to the <em>crosshair</em>
+ *       (distance is only a small penalty, {@code distanceWeight}, so a nearer entity behind the player's shoulder never beats a
+ *       farther one the player is looking at). In tiered mode it is the nearest one after a handicap in blocks per kind of entity:
+ *       players first, then armor stands, then everything else, with the angle to the crosshair as a mild tiebreak.
  *   <li>If a target is already held, it is kept while it is still present, inside the limits (widened by
  *       the retain margin) and, when required, visible. Only when that stops being true does the
  *       selector pick anything else. A better-placed rival never steals the lock.
@@ -100,7 +101,10 @@ public final class TargetSelector {
         double error = c.box().contains(eye.eye())
                 ? 0.0
                 : AimMath.angularErrorDegrees(eye.eye(), eye.yawDegrees(), eye.pitchDegrees(), aim);
-        return new Scored(c, aim, distance, error, error + s.distanceWeight() * distance);
+        double ranking = s.tiered()
+                ? distance + s.penalty(c.tier()) + TargetingSettings.ANGLE_BLOCKS_PER_DEGREE * error
+                : error + s.distanceWeight() * distance;
+        return new Scored(c, aim, distance, error, ranking);
     }
 
     private static boolean visible(Scored sc, EyeState eye, TargetingSettings s, LineOfSight los) {

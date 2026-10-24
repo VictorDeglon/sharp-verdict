@@ -140,6 +140,10 @@ public final class SharpTestHooks {
         return r != null && r.cues().minimal();
     }
 
+    public static void setRequireMarker(boolean on) {
+        SharpClient.configs().get().requireMarker = on;
+    }
+
     public static void setCameraTracking(boolean on) {
         SharpClient.configs().get().cameraTrackingEnabled = on;
     }

@@ -34,30 +34,76 @@ class TargetLockTest {
     }
 
     @Test
-    void countsSwitchesWhenTheTargetIsReplaced() {
+    void neverMovesToAnotherEntityWhenTheTargetIsGone() {
         TargetLock lock = new TargetLock();
         lock.update(eye, List.of(at(1, 0, 10), at(2, 5, 10)), settings, LineOfSight.ALWAYS, 1L);
 
-        Selection s = lock.update(eye, List.of(at(2, 5, 10)), settings, LineOfSight.ALWAYS, 2L);
-        assertEquals(Selection.Kind.SWITCHED, s.kind());
-        assertEquals(2, lock.currentId());
-        assertEquals(1, lock.switchCount());
-        assertEquals(2L, lock.lockedAtNanos());
+        Selection lost = lock.update(eye, List.of(at(2, 5, 10)), settings, LineOfSight.ALWAYS, 2L);
+        assertEquals(Selection.Kind.LOST, lost.kind());
+        assertFalse(lock.hasTarget());
+        assertTrue(lock.isCommitted(), "the hold is still committed to the first entity");
+
+        Selection after = lock.update(eye, List.of(at(2, 5, 10)), settings, LineOfSight.ALWAYS, 3L);
+        assertEquals(Selection.Kind.NONE, after.kind(), "LOST is reported once, then there is simply no target");
+        assertEquals(Selection.NO_TARGET, after.targetId());
+        assertEquals(1, after.eligible(), "the other entity is eligible, it is just not taken");
+        assertEquals(0, lock.switchCount());
     }
 
     @Test
-    void targetLossClearsTheCurrentIdSoTheNextCandidateIsAnAcquisition() {
+    void picksTheSameEntityUpAgainWhenItBecomesValid() {
         TargetLock lock = new TargetLock();
-        lock.update(eye, List.of(at(1, 0, 10)), settings, LineOfSight.ALWAYS, 1L);
+        lock.update(eye, List.of(at(1, 0, 10)), settings, LineOfSight.ALWAYS, 1_000L);
 
-        Selection lost = lock.update(eye, List.of(), settings, LineOfSight.ALWAYS, 2L);
-        assertEquals(Selection.Kind.LOST, lost.kind());
+        lock.update(eye, List.of(at(2, 5, 10)), settings, LineOfSight.ALWAYS, 2_000L);
         assertFalse(lock.hasTarget());
 
-        Selection again = lock.update(eye, List.of(at(3, 0, 10)), settings, LineOfSight.ALWAYS, 3L);
+        Selection back = lock.update(eye, List.of(at(2, 5, 10), at(1, 0, 11)), settings, LineOfSight.ALWAYS, 3_000L);
+        assertEquals(1, back.targetId());
+        assertEquals(1, lock.currentId());
+        assertTrue(lock.hasTarget());
+    }
+
+    @Test
+    void aRivalNeverTakesOverWhileTheTargetIsOnlyHidden() {
+        TargetLock lock = new TargetLock();
+        lock.update(eye, List.of(at(1, 0, 10), at(2, 5, 10)), new TargetingSettings(16, 360, 0.5, 0.05, 0.0, true), LineOfSight.ALWAYS, 1L);
+        assertEquals(1, lock.currentId());
+
+        TargetingSettings needLos = new TargetingSettings(16, 360, 0.5, 0.05, 0.0, true);
+        LineOfSight onlyTheRivalIsSeen = (from, to) -> to.x() > 2.0;
+        Selection hidden = lock.update(eye, List.of(at(1, 0, 10), at(2, 5, 10)), needLos, onlyTheRivalIsSeen, 2L);
+        assertFalse(hidden.hasTarget());
+
+        Selection visible = lock.update(eye, List.of(at(1, 0, 10), at(2, 5, 10)), needLos, LineOfSight.ALWAYS, 3L);
+        assertEquals(1, visible.targetId());
+    }
+
+    @Test
+    void aNewEntityIsOnlyTakenAfterTheLockIsCleared() {
+        TargetLock lock = new TargetLock();
+        lock.update(eye, List.of(at(1, 0, 10)), settings, LineOfSight.ALWAYS, 1L);
+        lock.update(eye, List.of(), settings, LineOfSight.ALWAYS, 2L);
+
+        Selection ignored = lock.update(eye, List.of(at(3, 0, 10)), settings, LineOfSight.ALWAYS, 3L);
+        assertFalse(ignored.hasTarget());
+
+        lock.clear();
+        Selection again = lock.update(eye, List.of(at(3, 0, 10)), settings, LineOfSight.ALWAYS, 4L);
         assertEquals(Selection.Kind.ACQUIRED, again.kind());
         assertEquals(3, lock.currentId());
-        assertEquals(0, lock.switchCount(), "re-acquiring after a loss is not a switch");
+    }
+
+    @Test
+    void aHoldThatHasTakenNothingYetCanStillTakeItsFirstTarget() {
+        TargetLock lock = new TargetLock();
+        Selection none = lock.update(eye, List.of(), settings, LineOfSight.ALWAYS, 1L);
+        assertEquals(Selection.Kind.NONE, none.kind());
+        assertFalse(lock.isCommitted());
+
+        Selection first = lock.update(eye, List.of(at(4, 0, 10)), settings, LineOfSight.ALWAYS, 2L);
+        assertEquals(Selection.Kind.ACQUIRED, first.kind());
+        assertEquals(4, lock.currentId());
     }
 
     @Test
@@ -65,11 +111,12 @@ class TargetLockTest {
         TargetLock lock = new TargetLock();
         lock.update(eye, List.of(at(1, 0, 10), at(2, 5, 10)), settings, LineOfSight.ALWAYS, 1L);
         lock.update(eye, List.of(at(2, 5, 10)), settings, LineOfSight.ALWAYS, 2L);
-        assertTrue(lock.hasTarget());
+        assertTrue(lock.isCommitted());
 
         lock.clear();
 
         assertFalse(lock.hasTarget());
+        assertFalse(lock.isCommitted());
         assertEquals(Selection.NO_TARGET, lock.currentId());
         assertEquals(0, lock.switchCount());
         assertEquals(0L, lock.lockedAtNanos());
