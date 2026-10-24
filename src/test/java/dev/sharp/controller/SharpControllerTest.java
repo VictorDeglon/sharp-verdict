@@ -183,7 +183,6 @@ class SharpControllerTest {
             FrameResult r = w.frame();
             assertEquals(1, r.selection().targetId(), "frame " + i);
         }
-        assertEquals(0, controller.switchCount());
     }
 
     // ---- camera tracking --------------------------------------------------------------------------
@@ -266,7 +265,6 @@ class SharpControllerTest {
         w.frames(30);
         FrameResult again = w.pressFresh();
         assertEquals(Selection.Kind.ACQUIRED, again.selection().kind());
-        assertEquals(0, controller.switchCount());
         assertEquals(0.0, again.aim().deltaYaw(), 0.0, "camera fade-in restarts");
     }
 
@@ -312,7 +310,6 @@ class SharpControllerTest {
         // Time keeps running while there is no target, so the first step is tiny rather than exactly zero.
         assertTrue(back.aim().ramp() < 0.05, "fade-in did not restart: ramp=" + back.aim().ramp());
         assertTrue(Math.abs(back.aim().deltaYaw()) < 0.1, "first step after a loss: " + back.aim().deltaYaw());
-        assertEquals(0, controller.switchCount());
     }
 
     @Test
@@ -339,7 +336,6 @@ class SharpControllerTest {
         FrameResult again = w.pressFresh();
         assertEquals(Selection.Kind.ACQUIRED, again.selection().kind());
         assertEquals(2, again.selection().targetId());
-        assertEquals(0, controller.switchCount());
         assertEquals(0.0, again.aim().deltaYaw(), 0.0, "camera fade-in restarts");
     }
 

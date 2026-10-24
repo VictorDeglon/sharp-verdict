@@ -30,7 +30,7 @@ class CueBuilderTest {
 
     private static DebugSnapshot snapAt(double seconds, boolean keyDown, boolean active, String gate, Selection sel, boolean inReach,
             Exposure exposure, boolean shieldBlocksYou, boolean tracking, int others, int othersInReach) {
-        return new DebugSnapshot(active, keyDown, true, Reason.NONE, 1.0, gate, sel, sel.hasTarget() ? "Sharp Dummy" : "", 0, tracking,
+        return new DebugSnapshot(active, keyDown, true, Reason.NONE, 1.0, gate, sel, sel.hasTarget() ? "Sharp Dummy" : "", tracking,
                 null, 1.0, 0, 0, inReach, exposure, Zone.FEET, shieldBlocksYou, others, othersInReach, keyDown ? seconds : 0.0);
     }
 

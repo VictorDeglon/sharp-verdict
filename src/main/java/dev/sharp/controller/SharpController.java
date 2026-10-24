@@ -45,12 +45,13 @@ public final class SharpController {
     /**
      * What the world looks like right now. Only built while the feature is active.
      *
-     * @param blockers    every entity that could intercept an attack on the way to the target, practice entity or not, so a hit
+     * @param clientTick  counts client ticks, never the world's own clock: that one jumps when a server resends it
+     * @param blockers    every entity that could intercept an attack on the way to the target, candidate or not, so a hit
      *                    that would land on somebody else is noticed. Includes the candidates; the target itself is skipped by id
      * @param attackRange whether the weapon the player holds could hit an entity with this box from where the player stands
      */
     public record WorldView(
-            long gameTick,
+            long clientTick,
             double partialTick,
             V3 eyeAtTick,
             double yawDegrees,
@@ -64,7 +65,7 @@ public final class SharpController {
     /**
      * @param activation activation inputs, read every frame
      * @param nowNanos   a monotonic clock reading
-     * @param gate       short text describing the practice gate, for the debug panel
+     * @param gate       short text saying whether the feature is open, for the debug panel
      * @param world      builds the {@link WorldView}; called only when the feature is active
      */
     public record FrameInput(
@@ -166,7 +167,7 @@ public final class SharpController {
         hasLastFrame = true;
         lastFrameNanos = in.nowNanos();
 
-        eyeTrail.observe(view.gameTick(), Box.point(view.eyeAtTick()));
+        eyeTrail.observe(view.clientTick(), Box.point(view.eyeAtTick()));
         V3 eye = eyeTrail.at(view.partialTick()).center();
         double yaw = view.yawDegrees();
         double pitch = view.pitchDegrees();
@@ -188,7 +189,7 @@ public final class SharpController {
                 trailTargetId = selection.targetId();
             }
             targetLabel = candidate.label();
-            targetTrail.observe(view.gameTick(), candidate.box());
+            targetTrail.observe(view.clientTick(), candidate.box());
             targetBox = targetTrail.at(view.partialTick());
             mainInReach = view.attackRange().test(targetBox);
             double preferredHeight = config.aimAdaptive
@@ -230,10 +231,6 @@ public final class SharpController {
 
     public boolean isActive() {
         return tracker.isActive();
-    }
-
-    public int switchCount() {
-        return lock.switchCount();
     }
 
     public boolean hasTarget() {
@@ -308,7 +305,6 @@ public final class SharpController {
                 gate,
                 selection,
                 targetLabel,
-                lock.switchCount(),
                 config.cameraTrackingEnabled,
                 aim,
                 lastAngularError,
@@ -324,7 +320,7 @@ public final class SharpController {
     }
 
     /**
-     * The main target, and every other practice entity within the lock range (nearest first, as many as the settings allow), each
+     * The main target, and every other candidate within the lock range (nearest first, as many as the settings allow), each
      * marked with whether the held weapon can reach it. Only what the player could already see is drawn: the outlines are depth
      * tested, so nothing shows through a block. The counts of the others feed the on-screen text and do not depend on what is drawn.
      */
@@ -384,7 +380,7 @@ public final class SharpController {
             return;
         }
         switch (s.kind()) {
-            case ACQUIRED, SWITCHED -> log.accept(String.format(
+            case ACQUIRED -> log.accept(String.format(
                     Locale.ROOT,
                     "target %s #%d \"%s\" dist=%.1f err=%.2f",
                     s.kind().name().toLowerCase(Locale.ROOT),

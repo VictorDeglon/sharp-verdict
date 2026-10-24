@@ -17,7 +17,6 @@ public final class TargetLock {
     private int committedId = Selection.NO_TARGET;
     private int currentId = Selection.NO_TARGET;
     private long lockedAtNanos;
-    private int switches;
     private Selection last = Selection.empty();
 
     public Selection update(
@@ -48,7 +47,6 @@ public final class TargetLock {
         committedId = Selection.NO_TARGET;
         currentId = Selection.NO_TARGET;
         lockedAtNanos = 0L;
-        switches = 0;
         last = Selection.empty();
     }
 
@@ -68,11 +66,6 @@ public final class TargetLock {
 
     public long lockedAtNanos() {
         return lockedAtNanos;
-    }
-
-    /** Always 0 now that a hold never moves to a second entity; the debug panel still prints it. */
-    public int switchCount() {
-        return switches;
     }
 
     public Selection last() {

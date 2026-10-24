@@ -131,7 +131,7 @@ public final class SharpConfig {
     /** Ignore targets that are behind blocks. */
     public boolean requireLineOfSight = true;
 
-    // ---- practice camera ---------------------------------------------------------------------------
+    // ---- camera ------------------------------------------------------------------------------------
 
     /** Whether the camera follows the locked target while the key is held. Off by default. */
     public boolean cameraTrackingEnabled = false;
@@ -186,7 +186,7 @@ public final class SharpConfig {
     /** Outline width in approximate pixels, 0.5..8. */
     public double hitboxLineWidth = 2.0;
 
-    /** Also outline the other practice entities in range: yellow, or red when the held weapon reaches them. */
+    /** Also outline the other targets in range: yellow, or red when the held weapon reaches them. */
     public boolean hitboxShowOthers = true;
 
     /** At most this many extra outlines, 0..32. */

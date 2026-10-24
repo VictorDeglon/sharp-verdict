@@ -33,7 +33,7 @@ final class DebugOverlay {
             int y = 4;
             int lineHeight = mc.font.lineHeight + 2;
             if (snapshot == null) {
-                graphics.text(mc.font, "SHARP debug: idle", x, y, COLOR_IDLE, true); // VERIFIED (GuiGraphicsExtractor#text)
+                graphics.text(mc.font, "SHARP: Verdict debug: idle", x, y, COLOR_IDLE, true); // VERIFIED (GuiGraphicsExtractor#text)
                 return;
             }
             List<String> lines = DebugFormatter.lines(snapshot);

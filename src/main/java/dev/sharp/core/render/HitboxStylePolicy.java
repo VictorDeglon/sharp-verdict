@@ -8,8 +8,8 @@ import dev.sharp.core.targeting.Exposure;
  * <ul>
  *   <li><b>Blue</b>: the main target, the one the lock is on. Thicker while the camera is following it. When the held weapon
  *       can reach it, its fill and aim cross turn red, so one glance says "locked and hittable".
- *   <li><b>Yellow</b>: another practice entity in range.
- *   <li><b>Red</b>: another practice entity that the held weapon can reach from where the player stands.
+ *   <li><b>Yellow</b>: another target in range.
+ *   <li><b>Red</b>: another target that the held weapon can reach from where the player stands.
  *   <li><b>Purple</b>: the main target when another hitbox covers every spot of it, or the player is inside it. The aim cross is
  *       purple too when it had to move to the part that sticks out.
  *   <li><b>Cyan</b>: the aim cross of a target that holds a shield up. It sits on the target's back.

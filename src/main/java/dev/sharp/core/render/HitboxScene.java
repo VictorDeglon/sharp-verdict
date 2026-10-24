@@ -13,7 +13,7 @@ import java.util.List;
  * @param tracking whether the camera is actively following the main target
  * @param aimPoint exact point the assist aims at on the main target
  * @param exposure what is in the way of the main target (another hitbox, a shield, the player's own eye)
- * @param others   the other practice entities in range, nearest first
+ * @param others   the other targets in range, nearest first
  */
 public record HitboxScene(Entry main, boolean tracking, V3 aimPoint, Exposure exposure, List<Entry> others) {
     public static final HitboxScene EMPTY = new HitboxScene(null, false, null, Exposure.OPEN, List.of());

@@ -30,7 +30,6 @@ class TargetLockTest {
         Selection second = lock.update(eye, both, settings, LineOfSight.ALWAYS, 9_000L);
         assertEquals(Selection.Kind.KEPT, second.kind());
         assertEquals(1_000L, lock.lockedAtNanos(), "a kept lock keeps its original timestamp");
-        assertEquals(0, lock.switchCount());
     }
 
     @Test
@@ -47,7 +46,6 @@ class TargetLockTest {
         assertEquals(Selection.Kind.NONE, after.kind(), "LOST is reported once, then there is simply no target");
         assertEquals(Selection.NO_TARGET, after.targetId());
         assertEquals(1, after.eligible(), "the other entity is eligible, it is just not taken");
-        assertEquals(0, lock.switchCount());
     }
 
     @Test
@@ -118,7 +116,6 @@ class TargetLockTest {
         assertFalse(lock.hasTarget());
         assertFalse(lock.isCommitted());
         assertEquals(Selection.NO_TARGET, lock.currentId());
-        assertEquals(0, lock.switchCount());
         assertEquals(0L, lock.lockedAtNanos());
         assertEquals(Selection.Kind.NONE, lock.last().kind());
 

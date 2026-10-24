@@ -5,7 +5,7 @@
 <h3 align="center">One target. Decided once. Held until you let go.</h3>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.4.0-050505?style=flat-square&labelColor=050505&color=E10600">
+  <img alt="version" src="https://img.shields.io/badge/version-0.4.1-050505?style=flat-square&labelColor=050505&color=E10600">
   <img alt="minecraft" src="https://img.shields.io/badge/minecraft-26.3-ffffff?style=flat-square&labelColor=050505">
   <img alt="loader" src="https://img.shields.io/badge/fabric-0.19.5%2B-ffffff?style=flat-square&labelColor=050505">
   <img alt="tests" src="https://img.shields.io/badge/unit%20tests-314%20passing-ffffff?style=flat-square&labelColor=050505">
@@ -37,13 +37,13 @@ Hold one key. It picks the best target in range, outlines its real hitbox in col
 | **Work** | Single-player, LAN and servers. Client side only. |
 
 > [!NOTE]
-> **Honest status.** Built and covered by 314 unit tests. The in-game test has not been re-run for the 0.3.0 and 0.4.0 changes, because the build sandbox could not open a graphics context, and nothing has run on a real server yet. Run `./gradlew runClientGameTest` on a machine with working OpenGL before you trust the in-game behaviour. Details in [docs/TESTING.md](docs/TESTING.md).
+> **Honest status.** Built and covered by 314 unit tests. The in-game test has not been re-run for the 0.3.0, 0.4.0 and 0.4.1 changes, because the build sandbox could not open a graphics context, and nothing has run on a real server yet. Run `./gradlew runClientGameTest` on a machine with working OpenGL before you trust the in-game behaviour. Details in [docs/TESTING.md](docs/TESTING.md).
 
 ## Install
 
 1. **Fabric Loader 0.19.5 or newer** for Minecraft **26.3**, from [fabricmc.net/use](https://fabricmc.net/use/installer/). The official launcher brings the right Java. If you use another launcher, pick **Java 25**.
 2. **Fabric API 0.163.0+26.3**, into your `mods` folder.
-3. **`sharp-verdict-0.4.0.jar`** from the [Releases](https://github.com/VictorDeglon/sharp-verdict/releases) page, into the same `mods` folder.
+3. **`sharp-verdict-0.4.1.jar`** from the [Releases](https://github.com/VictorDeglon/sharp-verdict/releases) page, into the same `mods` folder.
 4. Start the game, open a world or join a server, and **hold `G`**.
 
 Coming from an older SHARP jar? Delete it first. The mod id is still `sharp`, so your config and keybinds carry over.
@@ -132,13 +132,13 @@ A lock-on that turns your camera onto other players is aim assist. **Most public
 You need **JDK 25** and an internet connection. The first build downloads Minecraft and the mappings.
 
 ```bash
-./gradlew build                 # compile, run the 314 unit tests, produce build/libs/sharp-0.4.0.jar
+./gradlew build                 # compile, run the 314 unit tests, produce build/libs/sharp-verdict-0.4.1.jar
 ./gradlew test                  # unit tests only, fast
 ./gradlew runClient             # a development client with the mod loaded
 ./gradlew runClientGameTest     # plays the feature in the real game (needs OpenGL; on Linux: xvfb-run -a ./gradlew runClientGameTest)
 ```
 
-The mod is `build/libs/sharp-0.4.0.jar`. Ignore `sharp-0.4.0-sources.jar`.
+The mod is `build/libs/sharp-verdict-0.4.1.jar`. Ignore `sharp-verdict-0.4.1-sources.jar`.
 
 ## Reference
 
@@ -269,7 +269,7 @@ Four styles, set with `statusStyle` or by pressing `K` in game (the key cycles a
 | `auto` (default) | Full text for `statusFullSeconds` (3) after the key goes down, then one dim line. |
 | `minimal` | The one dim line, always. |
 | `full` | The full text for as long as you hold the key. Only reachable from the config. |
-| `off` | No text at all. The outlines and colours are untouched. With the text off, a closed gate or an empty lock is silent, so press `J` and read the `gate:` and `target:` lines if holding the key seems to do nothing. |
+| `off` | No text at all. The outlines and colours are untouched. With the text off, a switched-off feature or an empty lock is silent, so press `J` and read the `gate:` and `target:` lines if holding the key seems to do nothing. |
 
 </details>
 
@@ -409,7 +409,7 @@ It writes `sharp-gametest-report.txt` and screenshots into `build/run/clientGame
 <details>
 <summary><b>Known limits</b></summary>
 
-- **Shields:** aiming at the back is what you asked for, and it is implemented, but see Shields: it does not make the hit land by itself.
+- **Shields:** aiming at the back is implemented, but see Shields: it does not make the hit land by itself.
 - **Covered detection is geometric.** It treats every pickable entity as a plain box, the way the game's own crosshair pick does. It does not know about entities that ignore the pick or about anything modded that changes picking.
 - **Reach comes from the game for the item in your main hand.** Enchantments and attribute changes that the game applies to reach are included because the game answers; the mod adds nothing of its own.
 - **Servers:** it only moves your camera and draws on your screen. A server sees a player who turns smoothly onto targets, and many have anti-cheat that flags exactly that. See Multiplayer.
@@ -433,6 +433,7 @@ It writes `sharp-gametest-report.txt` and screenshots into `build/run/clientGame
 
 | Version | What it is |
 | --- | --- |
+| **0.4.1** | Polish. The jar is now `sharp-verdict-<version>.jar`. Removed the dead target-switch counter from the debug panel, cached the compiled ignore list instead of rebuilding it every frame, and cleaned the wording left over from the single-player-only design. No behaviour change. |
 | **0.4.0** | Rebranded as SHARP: Verdict (black, white, one red point). An editable ignore list (end crystals, item frames, vehicles, projectiles, villagers, golems, your own pets), and an aim height that adapts: middle out of reach, feet in reach, sliding down while the target falls. |
 | **0.3.0** | Runs everywhere: single-player, LAN and servers, with the camera. Players first, then armor stands, then animals. The lock never moves to a second target during a hold. No name needed on targets. A client tick counter replaces the world clock for smoothing, which stopped a once-a-second hitch on servers. |
 | **0.2.0** | Multiplayer visualization patch: selection and hitbox outlines on servers for marked entities. The camera stayed single-player only. |

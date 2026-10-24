@@ -12,7 +12,7 @@ public final class DebugFormatter {
 
     public static List<String> lines(DebugSnapshot d) {
         List<String> out = new ArrayList<>(8);
-        out.add("SHARP debug");
+        out.add("SHARP: Verdict debug");
 
         out.add(String.format(Locale.ROOT, "state: %s%s  key: %s  armed: %s",
                 d.active() ? "ACTIVE" : "off",
@@ -36,8 +36,7 @@ public final class DebugFormatter {
                     d.zone().name().toLowerCase(Locale.ROOT), d.exposure(), d.shieldBlocksYou() ? " (shield blocks you)" : "",
                     d.othersInRange(), d.othersInReach()));
         }
-        out.add(String.format(Locale.ROOT, "seen %d  eligible %d  switches %d",
-                s.seen(), s.eligible(), d.switches()));
+        out.add(String.format(Locale.ROOT, "seen %d  eligible %d", s.seen(), s.eligible()));
 
         if (!d.trackingEnabled()) {
             out.add("camera: tracking off");
