@@ -58,6 +58,6 @@ public final class SharpClient implements ClientModInitializer {
         DebugOverlay.register(runtime, configs);
         CueOverlay.register(runtime);
 
-        LOGGER.info("SHARP loaded. Hold the lock key (default G) to lock onto the best target in range.");
+        LOGGER.info("SHARP: Verdict loaded. Hold the lock key (default G) to lock onto the best target in range.");
     }
 }

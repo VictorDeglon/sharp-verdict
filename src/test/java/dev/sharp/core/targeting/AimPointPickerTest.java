@@ -261,4 +261,44 @@ class AimPointPickerTest {
         assertTrue(c.point().isFinite());
         assertEquals(Exposure.OPEN, c.exposure());
     }
+
+    // ---- a preferred height from the planner ------------------------------------------------------
+
+    @Test
+    void aPreferredHeightIsTriedBeforeTheUsualOrder() {
+        TargetCandidate t = standing(1, 0, 10);
+        Choice c = AimPointPicker.pick(EYE, t, List.of(t), defaults, LineOfSight.ALWAYS, 0.5);
+        assertEquals(Zone.MIDDLE, c.zone());
+        assertEquals(0.5 * 1.8, c.point().y(), 1.0e-9);
+        assertEquals(Exposure.OPEN, c.exposure());
+    }
+
+    @Test
+    void aPreferredHeightThatIsHiddenFallsBackToTheUsualSpots() {
+        TargetCandidate t = standing(1, 0, 10);
+        // Only the lower part can be seen, as when a wall edge hides the top.
+        LineOfSight lowOnly = (from, to) -> to.y() < 0.5;
+        Choice c = AimPointPicker.pick(EYE, t, List.of(t), defaults, lowOnly, 0.5);
+        assertEquals(Zone.FEET, c.zone(), "the middle is hidden, so the feet zone is taken");
+    }
+
+    @Test
+    void aPreferredHeightAtTheFeetIsNotTriedTwice() {
+        TargetCandidate t = standing(1, 0, 10);
+        Choice c = AimPointPicker.pick(EYE, t, List.of(t), defaults, LineOfSight.ALWAYS, 0.12);
+        assertEquals(0.12 * 1.8, c.point().y(), 1.0e-9);
+    }
+
+    @Test
+    void aNonFinitePreferenceMeansTheUsualOrder() {
+        TargetCandidate t = standing(1, 0, 10);
+        assertEquals(pick(t, defaults), AimPointPicker.pick(EYE, t, List.of(t), defaults, LineOfSight.ALWAYS, Double.NaN));
+    }
+
+    @Test
+    void aPreferredHeightOutsideTheBoxIsClamped() {
+        TargetCandidate t = standing(1, 0, 10);
+        Choice c = AimPointPicker.pick(EYE, t, List.of(t), defaults, LineOfSight.ALWAYS, 7.0);
+        assertTrue(t.box().contains(c.point()), "still inside the box: " + c.point());
+    }
 }

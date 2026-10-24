@@ -2,8 +2,9 @@
     "schemaVersion": 1,
     "id": "sharp",
     "version": "${version}",
-    "name": "SHARP",
-    "description": "Hold-to-lock targeting: picks players first, then armor stands, then animals, outlines the hitbox and can steer the camera onto the target.",
+    "name": "SHARP: Verdict",
+    "description": "SHARP: Verdict, the target lock module of the SHARP client. Hold a key and it locks one target (players first, then armor stands, then animals), outlines the hitbox and can steer the camera onto it.",
+    "icon": "assets/sharp/icon.png",
     "authors": [
         "Victor Deglon"
     ],

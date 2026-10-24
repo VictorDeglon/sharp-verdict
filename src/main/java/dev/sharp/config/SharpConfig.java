@@ -4,7 +4,11 @@ import dev.sharp.core.camera.AimSettings;
 import dev.sharp.core.hud.CueStyle;
 import dev.sharp.core.render.Argb;
 import dev.sharp.core.render.HitboxSettings;
+import dev.sharp.core.targeting.IgnoreList;
 import dev.sharp.core.targeting.TargetingSettings;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 
 /**
  * All user settings, stored as {@code config/sharp.json}.
@@ -16,6 +20,30 @@ import dev.sharp.core.targeting.TargetingSettings;
  */
 public final class SharpConfig {
     public static final String DEFAULT_MARKER = "sharp";
+
+    /**
+     * Entity types that are never targeted. Most of these are not living and could not be targets anyway; they are listed so the
+     * intent is written down and survives a change in what counts as a candidate. Villagers, golems and helpers are living, and
+     * clicking them opens a trade, hurts a pet-like helper or does nothing useful. Decorated pots and flower pots are blocks, not
+     * entities, so they are never candidates in the first place.
+     */
+    public static final List<String> DEFAULT_IGNORED_TYPES = List.of(
+            // things that explode, break or are placed decoration
+            "minecraft:end_crystal", "minecraft:item_frame", "minecraft:glow_item_frame", "minecraft:painting",
+            "minecraft:leash_knot", "minecraft:tnt",
+            // vehicles
+            "minecraft:*boat", "minecraft:*raft", "minecraft:*minecart",
+            // loose items and effects
+            "minecraft:item", "minecraft:experience_orb", "minecraft:falling_block", "minecraft:area_effect_cloud",
+            "minecraft:lightning_bolt", "minecraft:marker", "minecraft:interaction", "minecraft:*_display",
+            // thrown and fired things, including potions
+            "minecraft:*potion", "minecraft:*arrow", "minecraft:trident", "minecraft:snowball", "minecraft:egg",
+            "minecraft:ender_pearl", "minecraft:eye_of_ender", "minecraft:experience_bottle", "minecraft:firework_rocket",
+            "minecraft:fishing_bobber", "minecraft:*fireball", "minecraft:wither_skull", "minecraft:shulker_bullet",
+            "minecraft:llama_spit", "minecraft:*wind_charge",
+            // living, but not something to hit: traders, golems that guard villages, helpers
+            "minecraft:villager", "minecraft:wandering_trader", "minecraft:iron_golem", "minecraft:snow_golem",
+            "minecraft:copper_golem", "minecraft:allay", "minecraft:happy_ghast");
 
     /**
      * Bumped when the meaning or the default of a setting changes enough that an old file would keep the mod behaving the old way.
@@ -44,6 +72,22 @@ public final class SharpConfig {
     public String practiceMarker = DEFAULT_MARKER;
 
     // ---- targeting ---------------------------------------------------------------------------------
+
+    /**
+     * Entity type ids that are never targeted, such as {@code minecraft:villager}. A missing namespace means {@code minecraft} and
+     * {@code *} matches anything, so {@code minecraft:*_boat} is every boat. Defaults to {@link #DEFAULT_IGNORED_TYPES}; an empty list
+     * ignores nothing.
+     */
+    public List<String> ignoredEntityTypes = new ArrayList<>(DEFAULT_IGNORED_TYPES);
+
+    /** Never target a tamed animal (wolf, cat, parrot) that belongs to you. */
+    public boolean ignoreOwnPets = true;
+
+    /**
+     * Pick the height to aim at from the situation: the middle of the body while the target is out of reach, the normal spot (feet
+     * first) once it is in reach, and the middle sliding down toward the normal spot while it falls. Off: always the normal spot.
+     */
+    public boolean aimAdaptive = true;
 
     /** Maximum distance in blocks, 1..128. */
     public double range = 64.0;
@@ -180,6 +224,7 @@ public final class SharpConfig {
     /** Clamps every value into its documented range and repairs unusable ones. Idempotent. */
     public SharpConfig sanitize() {
         practiceMarker = cleanMarker(practiceMarker);
+        ignoredEntityTypes = cleanTypes(ignoredEntityTypes);
 
         configVersion = CURRENT_VERSION;
         statusStyle = CueStyle.parse(statusStyle).id();
@@ -237,6 +282,10 @@ public final class SharpConfig {
 
     // ---- snapshots for the core --------------------------------------------------------------------
 
+    public IgnoreList ignoreList() {
+        return IgnoreList.of(ignoredEntityTypes);
+    }
+
     public TargetingSettings targeting() {
         return new TargetingSettings(
                 range, fovDegrees, aimHeight, distanceWeight, retainMarginPercent, requireLineOfSight,
@@ -286,6 +335,21 @@ public final class SharpConfig {
             return fallback;
         }
         return Math.max(lo, Math.min(hi, v));
+    }
+
+    /** Trims, lower-cases, adds the default namespace, drops blanks and duplicates, keeps the order and caps the length. */
+    private static List<String> cleanTypes(List<String> types) {
+        if (types == null) {
+            return new ArrayList<>(DEFAULT_IGNORED_TYPES);
+        }
+        LinkedHashSet<String> out = new LinkedHashSet<>();
+        for (String type : types) {
+            String id = IgnoreList.normalise(type);
+            if (!id.isEmpty() && id.length() <= 100 && out.size() < 256) {
+                out.add(id);
+            }
+        }
+        return new ArrayList<>(out);
     }
 
     private static String cleanMarker(String marker) {

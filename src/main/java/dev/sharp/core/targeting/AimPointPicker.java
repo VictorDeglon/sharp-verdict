@@ -67,8 +67,17 @@ public final class AimPointPicker {
      * @param all    every candidate, to find boxes that cover the target
      */
     public static Choice pick(V3 eye, TargetCandidate target, List<TargetCandidate> all, TargetingSettings s, LineOfSight los) {
+        return pick(eye, target, all, s, los, Double.NaN);
+    }
+
+    /**
+     * As above, but a finite {@code preferredFraction} (0 feet .. 1 top, from {@link AimHeightPlanner}) is tried before the usual order.
+     * It is only a preference: cover and line of sight still move the choice to the next spot, exactly as for the usual ones.
+     */
+    public static Choice pick(
+            V3 eye, TargetCandidate target, List<TargetCandidate> all, TargetingSettings s, LineOfSight los, double preferredFraction) {
         Box box = target.box();
-        double fallbackFraction = s.feetFirst() ? FEET_FRACTION : s.aimHeight();
+        double fallbackFraction = Double.isFinite(preferredFraction) ? preferredFraction : s.feetFirst() ? FEET_FRACTION : s.aimHeight();
         if (box.contains(eye)) {
             return new Choice(box.pointAtHeight(s.aimHeight()), Exposure.INSIDE, Zone.of(fallbackFraction), false);
         }
@@ -78,7 +87,7 @@ public final class AimPointPicker {
         boolean shieldBlocksYou = shielded
                 && ((eye.x() - box.center().x()) * forward[0] + (eye.z() - box.center().z()) * forward[1]) > 0.0;
 
-        List<Double> fractions = fractions(s);
+        List<Double> fractions = fractions(s, preferredFraction);
         List<double[]> sides = sideOffsets(eye, box, s.avoidCover());
         List<V3> bases = new ArrayList<>();
         for (double[] side : sides) {
@@ -123,9 +132,12 @@ public final class AimPointPicker {
         return new Choice(preferred, shielded ? Exposure.SHIELDED : Exposure.OPEN, Zone.of(fractions.get(0)), shieldBlocksYou);
     }
 
-    private static List<Double> fractions(TargetingSettings s) {
-        List<Double> out = new ArrayList<>(4);
-        if (s.feetFirst()) {
+    private static List<Double> fractions(TargetingSettings s, double preferredFraction) {
+        List<Double> out = new ArrayList<>(5);
+        if (Double.isFinite(preferredFraction)) {
+            out.add(Math.max(0.0, Math.min(1.0, preferredFraction)));
+        }
+        if (s.feetFirst() && !(out.size() == 1 && Math.abs(out.get(0) - FEET_FRACTION) < 0.05)) {
             out.add(FEET_FRACTION);
         }
         for (double f : new double[] {s.aimHeight(), MIDDLE_FRACTION, UPPER_FRACTION}) {

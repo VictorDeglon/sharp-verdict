@@ -7,7 +7,7 @@ import net.minecraft.resources.Identifier;
 import org.lwjgl.sdl.SDLScancode;
 
 /**
- * Key bindings. All of them appear under "SHARP" in the game's Controls screen, so they can be rebound
+ * Key bindings. All of them appear under "SHARP: Verdict" in the game's Controls screen, so they can be rebound
  * there. The hold key is read with {@link KeyMapping#isDown()}, the key's live state, never a queued
  * click, so it can only be true while the key is physically down.
  */

@@ -153,7 +153,7 @@ public final class SharpGameTest implements FabricClientGameTest {
             check(ctx.computeOnClient(mc -> SharpTestHooks.exposure()).equals("OPEN"), "nothing is in the way");
             double[] aim = ctx.computeOnClient(mc -> SharpTestHooks.aimPoint());
             double[] box = ctx.computeOnClient(mc -> SharpTestHooks.mainBox());
-            check(aim != null && box != null && aim[1] < box[1] + 0.4 * (box[4] - box[1]) && aim[1] > box[1], "it aims at the feet zone of the box, not the middle: y "
+            check(aim != null && box != null && Math.abs(aim[1] - (box[1] + 0.5 * (box[4] - box[1]))) < 0.12 * (box[4] - box[1]), "13 blocks away is out of reach, so it aims at the middle of the box, not the feet: y "
                     + (aim == null ? "?" : String.valueOf(aim[1])) + " in " + (box == null ? "?" : box[1] + ".." + box[4]));
             List<String> rows = ctx.computeOnClient(mc -> SharpTestHooks.cueRows());
             note("text above the hotbar:\n" + String.join("\n", rows));
@@ -190,7 +190,7 @@ public final class SharpGameTest implements FabricClientGameTest {
                     + ", error " + ctx.computeOnClient(mc -> SharpTestHooks.angularError()) + " deg");
             check(converged, "the camera brought the crosshair within 0.5 degrees of the dummy");
             check(Math.abs(yawNow - EXPECTED_YAW) < 1.0, "the view ended up aimed at the dummy (yaw)");
-            check(pitchNow > 3.0 && pitchNow < 9.0, "and pitched down a little to the feet, not level: pitch " + pitchNow);
+            check(pitchNow > 1.5 && pitchNow < 5.5, "and pitched down a little to the middle of the body, not level and not to the feet: pitch " + pitchNow);
             check(trace.size() <= 30, "the approach took " + trace.size() + " ticks (" + trace.size() / 20.0 + " s), at most 1.5 s");
 
             int reversals = 0;

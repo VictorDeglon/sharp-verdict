@@ -4,6 +4,7 @@ import dev.sharp.config.SharpConfig;
 import dev.sharp.core.math.Box;
 import dev.sharp.core.math.V3;
 import dev.sharp.core.targeting.LineOfSight;
+import dev.sharp.core.targeting.IgnoreList;
 import dev.sharp.core.targeting.TargetCandidate;
 import dev.sharp.core.targeting.TargetTier;
 import java.util.ArrayList;
@@ -13,10 +14,12 @@ import java.util.function.Predicate;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
@@ -62,12 +65,14 @@ final class GameAccess {
 
     /**
      * Every living entity close enough to matter: players, mannequins and fake-player bodies, armor stands, animals and mobs, all
-     * with their real bounding boxes. The local player is never one, nor is anything dead, dying or in spectator mode. With
-     * {@code requireMarker} on, only entities carrying the practice marker are returned.
+     * with their real bounding boxes. The local player is never one, nor is anything dead, dying or in spectator mode, anything the
+     * game's own crosshair cannot pick (a marker armor stand), anything on the config's ignore list, or (by default) your own tamed
+     * pets. With {@code requireMarker} on, only entities carrying the practice marker are returned.
      */
     static List<TargetCandidate> candidates(ClientLevel level, LocalPlayer player, SharpConfig config) {
         double reach = config.range * (1.0 + config.retainMarginPercent / 100.0) + 2.0;
         V3 eye = eyePosition(player);
+        IgnoreList ignored = config.ignoreList();
         List<TargetCandidate> out = new ArrayList<>();
         for (Entity entity : level.entitiesForRendering()) { // VERIFIED (ClientEntityLifecycleTests)
             if (entity == player || !(entity instanceof LivingEntity living)) {
@@ -75,6 +80,12 @@ final class GameAccess {
             }
             // A spectator is in the world but not part of it, and a dying entity is a corpse for a second: neither is something to aim at.
             if (entity.isRemoved() || !living.isAlive() || living.isDeadOrDying() || entity.isSpectator()) { // isRemoved VERIFIED
+                continue;
+            }
+            if (!entity.isPickable() || ignored.ignores(typeId(entity))) { // an armor stand with the marker flag cannot be hit
+                continue;
+            }
+            if (config.ignoreOwnPets && entity instanceof TamableAnimal pet && pet.isOwnedBy(player)) {
                 continue;
             }
             if (config.requireMarker && !isPracticeEntity(entity, config.practiceMarker)) {
@@ -88,6 +99,11 @@ final class GameAccess {
             out.add(new TargetCandidate(entity.getId(), label(entity), box, living.getYHeadRot(), living.isBlocking(), tierOf(entity))); // getId VERIFIED
         }
         return out;
+    }
+
+    /** The entity's type id as the config spells it, for example {@code minecraft:villager}. */
+    static String typeId(Entity entity) {
+        return BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
     }
 
     /** Players and player-shaped bodies first, then armor stands, then everything else. */

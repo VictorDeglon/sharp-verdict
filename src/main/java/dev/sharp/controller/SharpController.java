@@ -11,6 +11,7 @@ import dev.sharp.core.math.V3;
 import dev.sharp.core.render.BoxTrail;
 import dev.sharp.core.render.HitboxScene;
 import dev.sharp.core.render.HitboxSettings;
+import dev.sharp.core.targeting.AimHeightPlanner;
 import dev.sharp.core.targeting.AimPointPicker;
 import dev.sharp.core.targeting.EyeState;
 import dev.sharp.core.targeting.Exposure;
@@ -93,6 +94,7 @@ public final class SharpController {
     private final ActivationTracker tracker;
     private final TargetLock lock = new TargetLock();
     private final AimController aimController = new AimController();
+    private final AimHeightPlanner heightPlanner = new AimHeightPlanner();
     private final BoxTrail targetTrail = new BoxTrail();
     private final BoxTrail eyeTrail = new BoxTrail();
 
@@ -182,13 +184,18 @@ public final class SharpController {
             TargetCandidate candidate = find(view.candidates(), selection.targetId());
             if (trailTargetId != selection.targetId()) {
                 targetTrail.reset();
+                heightPlanner.reset();
                 trailTargetId = selection.targetId();
             }
             targetLabel = candidate.label();
             targetTrail.observe(view.gameTick(), candidate.box());
             targetBox = targetTrail.at(view.partialTick());
+            mainInReach = view.attackRange().test(targetBox);
+            double preferredHeight = config.aimAdaptive
+                    ? heightPlanner.plan(targetBox, eye.y(), mainInReach, dt, targeting)
+                    : Double.NaN;
             AimPointPicker.Choice choice = AimPointPicker.pick(
-                    eye, candidate.withBox(targetBox), view.blockers(), targeting, view.lineOfSight());
+                    eye, candidate.withBox(targetBox), view.blockers(), targeting, view.lineOfSight(), preferredHeight);
             aimPoint = choice.point();
             exposure = choice.exposure();
             zone = choice.zone();
@@ -205,6 +212,7 @@ public final class SharpController {
             }
         } else {
             targetTrail.reset();
+            heightPlanner.reset();
             trailTargetId = Selection.NO_TARGET;
             targetLabel = "";
             lastAngularError = 0.0;
@@ -256,6 +264,7 @@ public final class SharpController {
     private void clearTargetState() {
         lock.clear();
         aimController.reset();
+        heightPlanner.reset();
         targetTrail.reset();
         eyeTrail.reset();
         trailTargetId = Selection.NO_TARGET;
@@ -321,8 +330,6 @@ public final class SharpController {
      */
     private HitboxScene buildScene(
             HitboxSettings hs, double range, V3 eye, Box targetBox, V3 aimPoint, boolean tracking, Selection sel, WorldView view) {
-        mainInReach = targetBox != null && view.attackRange().test(targetBox);
-
         List<TargetCandidate> near = new ArrayList<>();
         for (TargetCandidate c : view.candidates()) {
             if (c.id() != sel.targetId() && c.box().distanceTo(eye) <= range) {

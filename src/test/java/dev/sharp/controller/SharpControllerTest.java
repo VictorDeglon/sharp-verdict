@@ -745,6 +745,7 @@ class SharpControllerTest {
 
     @Test
     void itAimsAtTheFeetByDefaultWhichIsBelowTheMiddle() {
+        w.reach = box -> true; // in reach, where the normal spot is used
         w.candidates.add(dummy(1, 0, 10));
         w.frame();
         w.key = true;
@@ -759,6 +760,7 @@ class SharpControllerTest {
     @Test
     void withFeetFirstOffItAimsAtTheLoweredCentre() {
         config.aimFeetFirst = false;
+        w.reach = box -> true;
         w.candidates.add(dummy(1, 0, 10));
         w.frame();
         w.key = true;
@@ -969,5 +971,104 @@ class SharpControllerTest {
             w.frame();
         }
         assertEquals(30.0, w.yaw, 0.5);
+    }
+
+    // ---- aim height: out of reach, in reach, falling ----------------------------------------------
+
+    private static double fractionOf(FrameResult r) {
+        Box box = r.scene().main().box();
+        return (r.scene().aimPoint().y() - box.minY()) / box.height();
+    }
+
+    @Test
+    void outOfReachItAimsAtTheMiddleAndDropsToTheFeetTheMomentItIsInReach() {
+        w.candidates.add(dummy(1, 0, 10));
+        w.frame();
+        w.key = true;
+        FrameResult far = w.frames(20);
+        assertEquals(AimPointPicker.Zone.MIDDLE, far.debug().zone());
+        assertEquals(0.5, fractionOf(far), 1.0e-9);
+
+        w.reach = box -> true;
+        double previous = fractionOf(far);
+        int frames = 0;
+        FrameResult r = far;
+        while (frames < 30 && fractionOf(r) > 0.13) {
+            r = w.frame();
+            double f = fractionOf(r);
+            assertTrue(f <= previous + 1.0e-9, "only ever moves down: " + previous + " -> " + f);
+            assertTrue(previous - f <= 2.5 / 60 + 1.0e-9, "no jump: " + previous + " -> " + f);
+            previous = f;
+            frames++;
+        }
+        assertEquals(AimPointPicker.Zone.FEET, r.debug().zone());
+        assertTrue(frames <= 12, "feet within about a tenth of a second: " + frames + " frames");
+    }
+
+    @Test
+    void withAdaptiveAimOffItAlwaysAimsAtTheNormalSpot() {
+        config.aimAdaptive = false;
+        w.candidates.add(dummy(1, 0, 10));
+        w.frame();
+        w.key = true;
+        assertEquals(AimPointPicker.Zone.FEET, w.frames(20).debug().zone(), "out of reach, but the usual feet-first order");
+    }
+
+    /** One 60 fps frame of a target falling 0.4 blocks per 20 Hz tick, from {@code startY}; {@code i} is the frame number. */
+    private FrameResult fallingFrame(double startY, int i) {
+        w.tick = 100 + i / 3;
+        w.partial = (i % 3) / 3.0;
+        double y = startY - 0.4 * (i / 3); // the box only moves on a tick, as in the game
+        w.candidates.clear();
+        w.candidates.add(new TargetCandidate(1, "sharp 1", new Box(-0.3, y, 9.7, 0.3, y + 1.8, 10.3)));
+        return w.frame();
+    }
+
+    @Test
+    void aFallingTargetIsAimedAtInTheMiddleThenTheSpotSlidesDownAsItComesLevelWithThePlayer() {
+        w.reach = box -> true;
+        w.candidates.add(new TargetCandidate(1, "sharp 1", new Box(-0.3, 12, 9.7, 0.3, 13.8, 10.3)));
+        w.frame();
+        w.key = true;
+
+        double previous = Double.NaN;
+        double peak = 0;
+        boolean peaked = false;
+        FrameResult r = null;
+        for (int i = 0; i < 100; i++) { // 12 blocks at 0.4 per tick is 90 frames; the last ten are below the player's feet
+            r = fallingFrame(12, i);
+            double f = fractionOf(r);
+            if (!Double.isNaN(previous)) {
+                assertTrue(Math.abs(f - previous) <= 2.5 / 60 + 1.0e-9, "no jump at frame " + i + ": " + previous + " -> " + f);
+            }
+            peak = Math.max(peak, f);
+            if (peaked) {
+                assertTrue(f <= previous + 1.0e-9, "once in the middle it only slides down, frame " + i + ": " + previous + " -> " + f);
+            }
+            if (f >= 0.5 - 1.0e-9) {
+                peaked = true;
+            }
+            previous = f;
+        }
+        assertEquals(0.5, peak, 0.01, "while it was high above, the middle");
+        assertEquals(AimPointPicker.Zone.FEET, r.debug().zone(), "level with the player it is the normal spot again");
+    }
+
+    @Test
+    void aFallingTargetThatIsOutOfReachKeepsTheMiddleAndOnceInReachGoesToTheNormalSpot() {
+        w.candidates.add(new TargetCandidate(1, "sharp 1", new Box(-0.3, 12, 9.7, 0.3, 13.8, 10.3)));
+        w.frame();
+        w.key = true;
+        FrameResult r = null;
+        for (int i = 0; i < 120; i++) {
+            r = fallingFrame(12, i);
+        }
+        assertEquals(0.5, fractionOf(r), 1.0e-9, "still out of reach, so still the middle");
+
+        w.reach = box -> true;
+        for (int i = 120; i < 150; i++) {
+            r = fallingFrame(12, i);
+        }
+        assertTrue(fractionOf(r) < 0.2, "in reach and level with the player: " + fractionOf(r));
     }
 }

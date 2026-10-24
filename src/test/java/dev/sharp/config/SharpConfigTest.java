@@ -247,4 +247,36 @@ class SharpConfigTest {
     void anUpgradeFromTheFirstReleaseStillOnlyTargetsMarkedEntities() {
         assertTrue(SharpConfig.migratedFrom(new SharpConfig()).requireMarker);
     }
+
+    @Test
+    void theIgnoreListHasDefaultsAndIsCleaned() {
+        SharpConfig c = new SharpConfig();
+        assertTrue(c.ignoredEntityTypes.contains("minecraft:end_crystal"));
+        assertTrue(c.ignoredEntityTypes.contains("minecraft:villager"));
+        assertTrue(!c.ignoredEntityTypes.contains("minecraft:armor_stand"), "armor stands are targets");
+        assertTrue(c.ignoreOwnPets);
+        assertTrue(c.aimAdaptive);
+
+        c.ignoredEntityTypes = new java.util.ArrayList<>(java.util.Arrays.asList(" Sheep ", "minecraft:sheep", "", null, "MyMod:Thing"));
+        c.sanitize();
+        assertEquals(java.util.List.of("minecraft:sheep", "mymod:thing"), c.ignoredEntityTypes);
+
+        c.ignoredEntityTypes = new java.util.ArrayList<>();
+        assertEquals(java.util.List.of(), c.sanitize().ignoredEntityTypes, "an empty list is a choice and is kept");
+
+        c.ignoredEntityTypes = null;
+        assertEquals(SharpConfig.DEFAULT_IGNORED_TYPES, c.sanitize().ignoredEntityTypes, "a missing list gets the defaults");
+    }
+
+    @Test
+    void theIgnoreListIsCappedInSizeAndEntryLength() {
+        SharpConfig c = new SharpConfig();
+        c.ignoredEntityTypes = new java.util.ArrayList<>();
+        for (int i = 0; i < 1000; i++) {
+            c.ignoredEntityTypes.add("mod:type" + i);
+        }
+        c.ignoredEntityTypes.add("x".repeat(500));
+        assertEquals(256, c.sanitize().ignoredEntityTypes.size());
+        assertTrue(c.ignoredEntityTypes.stream().allMatch(t -> t.length() <= 100));
+    }
 }
