@@ -1,10 +1,10 @@
-# Automatically build the project and run any configured tests for every push
-# and submitted pull request. This can help catch issues that only occur on
-# certain platforms or Java versions, and provides a first line of defence
-# against bad commits.
+# Builds the mod and runs the unit tests on every push to main and every pull request.
 
 name: build
-on: [pull_request, push]
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 jobs:
   build:
@@ -23,8 +23,17 @@ jobs:
         run: chmod +x ./gradlew
       - name: build
         run: ./gradlew build
-      - name: capture build artifacts
+      - name: summarise unit tests
+        if: always()
+        run: python3 tools/release/test-summary.py build/test-results/test --markdown >> "$GITHUB_STEP_SUMMARY"
+      - name: upload jar
         uses: actions/upload-artifact@v7
         with:
-          name: Artifacts
+          name: sharp-verdict-jar
           path: build/libs/
+      - name: upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: build/reports/tests/
