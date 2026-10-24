@@ -192,11 +192,16 @@ public final class SharpController {
             targetTrail.observe(view.clientTick(), candidate.box());
             targetBox = targetTrail.at(view.partialTick());
             mainInReach = view.attackRange().test(targetBox);
-            double preferredHeight = config.aimAdaptive
-                    ? heightPlanner.plan(targetBox, eye.y(), mainInReach, dt, targeting)
-                    : Double.NaN;
+            double preferredHeight = Double.NaN;
+            V3 preferredPoint = null;
+            if (config.aimAdaptive) {
+                preferredHeight = heightPlanner.plan(targetBox, eye.y(), mainInReach, dt, targeting);
+                if (config.aimNearestPoint) {
+                    preferredPoint = AimPointPicker.preferredPoint(targetBox, eye, heightPlanner.nearestWeight());
+                }
+            }
             AimPointPicker.Choice choice = AimPointPicker.pick(
-                    eye, candidate.withBox(targetBox), view.blockers(), targeting, view.lineOfSight(), preferredHeight);
+                    eye, candidate.withBox(targetBox), view.blockers(), targeting, view.lineOfSight(), preferredHeight, preferredPoint);
             aimPoint = choice.point();
             exposure = choice.exposure();
             zone = choice.zone();

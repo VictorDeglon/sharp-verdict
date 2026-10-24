@@ -5,10 +5,10 @@
 <h3 align="center">One target. Decided once. Held until you let go.</h3>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.4.1-050505?style=flat-square&labelColor=050505&color=E10600">
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.0-050505?style=flat-square&labelColor=050505&color=E10600">
   <img alt="minecraft" src="https://img.shields.io/badge/minecraft-26.3-ffffff?style=flat-square&labelColor=050505">
   <img alt="loader" src="https://img.shields.io/badge/fabric-0.19.5%2B-ffffff?style=flat-square&labelColor=050505">
-  <img alt="tests" src="https://img.shields.io/badge/unit%20tests-314%20passing-ffffff?style=flat-square&labelColor=050505">
+  <img alt="tests" src="https://img.shields.io/badge/unit%20tests-339%20passing-ffffff?style=flat-square&labelColor=050505">
 </p>
 
 <p align="center">
@@ -31,19 +31,19 @@ Hold one key. It picks the best target in range, outlines its real hitbox in col
 | --- | --- |
 | **Pick** | Players first, then armor stands, then animals. Nearest wins inside a tier, and a handicap in blocks keeps a close sheep from beating a player who is almost as close. |
 | **Hold** | One target for the whole press. It never jumps to another one, even a better one. |
-| **Aim** | The middle of the body while the target is out of reach, the feet once it is in reach, and a smooth slide down while it falls. |
+| **Aim** | The middle of the body while the target is out of reach. Once it is in reach, the point of its hitbox **nearest your eyes**. While it falls, the middle, easing in toward that point as it comes level with you. |
 | **Skip** | End crystals, item frames, paintings, vehicles, projectiles, villagers, golems, your own pets, and anything else on an editable list. |
 | **Show** | The real hitbox, coloured by what you can hit, and one line of status above the hotbar. |
 | **Work** | Single-player, LAN and servers. Client side only. |
 
 > [!NOTE]
-> **Honest status.** Built and covered by 314 unit tests. The in-game test has not been re-run for the 0.3.0, 0.4.0 and 0.4.1 changes, because the build sandbox could not open a graphics context, and nothing has run on a real server yet. Run `./gradlew runClientGameTest` on a machine with working OpenGL before you trust the in-game behaviour. Details in [docs/TESTING.md](docs/TESTING.md).
+> **Honest status.** Built and covered by 339 unit tests. The in-game test has not been re-run for the 0.3.0, 0.4.0, 0.4.1 and 0.5.0 changes, because the build sandbox could not open a graphics context, and nothing has run on a real server yet. Run `./gradlew runClientGameTest` on a machine with working OpenGL before you trust the in-game behaviour. Details in [docs/TESTING.md](docs/TESTING.md).
 
 ## Install
 
 1. **Fabric Loader 0.19.5 or newer** for Minecraft **26.3**, from [fabricmc.net/use](https://fabricmc.net/use/installer/). The official launcher brings the right Java. If you use another launcher, pick **Java 25**.
 2. **Fabric API 0.163.0+26.3**, into your `mods` folder.
-3. **`sharp-verdict-0.4.1.jar`** from the [Releases](https://github.com/VictorDeglon/sharp-verdict/releases) page, into the same `mods` folder.
+3. **`sharp-verdict-0.5.0.jar`** from the [Releases](https://github.com/VictorDeglon/sharp-verdict/releases) page, into the same `mods` folder.
 4. Start the game, open a world or join a server, and **hold `G`**.
 
 Coming from an older SHARP jar? Delete it first. The mod id is still `sharp`, so your config and keybinds carry over.
@@ -70,7 +70,7 @@ You do not need a server or a second player. In a creative world:
 
 1. Face roughly toward them and **hold `G`**. The armor stand is outlined in **blue**, the sheep in **yellow**. The text above the hotbar says `LOCKED`.
 2. Press **`H`** to turn camera tracking on, then hold `G` again. Your view glides onto the target and stops.
-3. Walk close enough to hit it. The outline picks up **red**, and the aim point drops from the middle of the body to the feet.
+3. Walk close enough to hit it. The outline picks up **red**, and the aim point slides from the middle of the body to the spot on its hitbox nearest your eyes.
 4. Kill the armor stand while still holding `G`. The lock goes quiet instead of jumping to the sheep. Release and press again to lock the sheep.
 5. Press **`J`** to see exactly why it chose what it chose.
 
@@ -102,7 +102,7 @@ rank = distance + handicap(kind) + 0.1 * (degrees away from your crosshair)
 
 A sheep 2 blocks away loses to a player 2.5 blocks away, and beats a player 15 blocks away. Range, field of view and line of sight decide who is eligible at all, before any of this.
 
-**Aim height** follows the situation. Out of reach: the middle of the body, the biggest and most forgiving spot. In reach: the feet zone, within about a tenth of a second. Falling: the middle while the target is 5 or more blocks above your feet, sliding down as it comes level with you. Nothing is random, and nothing moves faster than the camera's own limits.
+**The aim point** follows the situation. Out of reach: the middle of the body, the biggest and most forgiving spot. In reach: the point of the hitbox **nearest your eyes**, about a sixth of a second after it comes into reach. That is the spot the game measures your reach to, so it is the one most likely to connect when a hit is marginal. Falling: the middle while the target is 5 or more blocks above your feet, easing in toward the nearest point as it comes level with you. Nothing is random, and nothing moves faster than the camera's own limits.
 
 ## Settings worth knowing
 
@@ -118,6 +118,7 @@ Everything lives in `config/sharp.json`, created on first launch and re-read eac
 | `priorityTiers` | `true` | Off: the entity nearest your crosshair wins instead. |
 | `ignoredEntityTypes` | see reference | Types that are never targeted. `*` wildcards work. |
 | `requireMarker` | `false` | On: only entities named `sharp...` or in a team called `sharp`. |
+| `aimNearestPoint` | `true` | In reach, aim at the point of the hitbox nearest your eyes instead of the feet. Needs `aimAdaptive`. |
 | `aimAdaptive` | `true` | Off: always the feet-first order. |
 | `statusStyle` | `auto` | `auto`, `full`, `minimal` or `off`. |
 
@@ -132,13 +133,13 @@ A lock-on that turns your camera onto other players is aim assist. **Most public
 You need **JDK 25** and an internet connection. The first build downloads Minecraft and the mappings.
 
 ```bash
-./gradlew build                 # compile, run the 314 unit tests, produce build/libs/sharp-verdict-0.4.1.jar
+./gradlew build                 # compile, run the 339 unit tests, produce build/libs/sharp-verdict-0.5.0.jar
 ./gradlew test                  # unit tests only, fast
 ./gradlew runClient             # a development client with the mod loaded
 ./gradlew runClientGameTest     # plays the feature in the real game (needs OpenGL; on Linux: xvfb-run -a ./gradlew runClientGameTest)
 ```
 
-The mod is `build/libs/sharp-verdict-0.4.1.jar`. Ignore `sharp-verdict-0.4.1-sources.jar`.
+The mod is `build/libs/sharp-verdict-0.5.0.jar`. Ignore `sharp-verdict-0.5.0-sources.jar`.
 
 ## Reference
 
@@ -152,7 +153,7 @@ The height it prefers depends on what the target is doing. Heights are fractions
 | Situation | Preferred spot |
 | --- | --- |
 | **Out of reach** of the weapon you hold | The **middle** (0.5). It is the biggest, most forgiving spot and moves least when the target turns or crouches, so it is the easiest to stay on while you close in. |
-| **In reach** | The **feet zone** (0.12 of the box, just above the bottom edge so a little tracking error still lands inside). Then `aimHeight` (0.3), then the middle, then the upper body. |
+| **In reach** | The **point of the hitbox nearest your eyes** (`aimNearestPoint`), pulled 0.08 blocks inside the box so a little tracking error still lands. If a block or another hitbox hides it, the usual order: the **feet zone** (0.12 of the box), then `aimHeight` (0.3), then the middle, then the upper body. With `aimNearestPoint` off, the feet zone comes first. |
 | **Falling** (dropping faster than 2.5 blocks per second) | The **middle** while it is 5 or more blocks above your feet, sliding down toward the spot above as it comes level with you. It will land where you are, so the point is already there when it does. Out of reach and falling stays on the middle. |
 
 Changes between those are never sudden. The preferred height moves at most 2.5 box heights per second, so coming into reach takes about a tenth of a second and the camera never lurches. Going back to the middle is slower on purpose: the target has to stay out of reach for a quarter of a second first, so standing on the edge of reach does not make the aim point flicker.
@@ -293,7 +294,8 @@ Four styles, set with `statusStyle` or by pressing `K` in game (the key cycles a
 | `aimAvoidCover` | `true` | | Aim at a part that another hitbox does not cover. |
 | `ignoredEntityTypes` | the list above | up to 256 entries | Entity types that are never targeted. |
 | `ignoreOwnPets` | `true` | | Never target a tamed wolf, cat or parrot that is yours. |
-| `aimAdaptive` | `true` | | Middle of the body out of reach, feet in reach, slide down while falling. Off: always the feet-first order. |
+| `aimNearestPoint` | `true` | | In reach, aim at the point of the hitbox nearest your eyes instead of the feet. Out of reach it stays on the middle, and while the target falls it eases in as the target comes level with you. Needs `aimAdaptive`. |
+| `aimAdaptive` | `true` | | Middle of the body out of reach, the nearest point (or the feet) in reach, easing in while falling. Off: always the feet-first order. |
 | `priorityTiers` | `true` | | Rank by distance with a handicap per kind (players, then armor stands, then the rest). Off: the crosshair decides. |
 | `armorStandPenalty` | `3.0` | 0 to 64 | Blocks added to an armor stand's distance when ranking. |
 | `otherPenalty` | `6.0` | 0 to 64 | The same for animals and every other entity. Never below `armorStandPenalty`. |
@@ -384,7 +386,7 @@ Two hooks keep it from getting stuck on: the full work happens once per rendered
 <details>
 <summary><b>Tests</b></summary>
 
-**Unit tests:** `./gradlew test` runs 314 JUnit tests with no game running.
+**Unit tests:** `./gradlew test` runs 339 JUnit tests with no game running.
 
 **Real-game test:** `./gradlew runClientGameTest` starts Minecraft with the mod on a virtual screen (on Linux: `xvfb-run -a ./gradlew runClientGameTest`), builds a stone platform with dummies, holds the key, and checks what the game and the mod actually do. It covers:
 
@@ -402,7 +404,7 @@ It writes `sharp-gametest-report.txt` and screenshots into `build/run/clientGame
 
 **What neither can check:** a raised shield (no vanilla mob raises one, so the shield maths is unit-tested only, and the call that reads it is compile-checked), elytra, bots from fake-player mods, and how the camera *feels* on a real GPU and a real mouse. Nothing here has run on a real multiplayer server: the tick-counter fix for the once-a-second hitch comes from reading how the server's time packets reach the client, and a LAN world is the closest the game test gets.
 
-**Checking the tests themselves:** the targeting, aim-point, status-text and config logic were also run against deliberately injected bugs (a flipped sign, a dropped check, a wrong colour). For 0.3.0 two more were injected: ignoring the tier handicap broke 4 tests, and letting the lock switch targets broke 7. For 0.4.0 three more: removing the fall blend broke 3 tests, removing the quarter-second reach hold broke 1, and removing the slew limit broke 4. A test suite that cannot fail proves nothing, so each injected bug has to make at least one test fail.
+**Checking the tests themselves:** the targeting, aim-point, status-text and config logic were also run against deliberately injected bugs (a flipped sign, a dropped check, a wrong colour). For 0.3.0 two more were injected: ignoring the tier handicap broke 4 tests, and letting the lock switch targets broke 7. For 0.4.0 three more: removing the fall blend broke 3 tests, removing the quarter-second reach hold broke 1, and removing the slew limit broke 4. For 0.5.0 six more in the nearest-point code, each caught by 4 to 8 tests. A test suite that cannot fail proves nothing, so each injected bug has to make at least one test fail.
 
 </details>
 
@@ -433,6 +435,7 @@ It writes `sharp-gametest-report.txt` and screenshots into `build/run/clientGame
 
 | Version | What it is |
 | --- | --- |
+| **0.5.0** | The aim point in reach is now the point of the hitbox nearest your eyes (`aimNearestPoint`), blended in from the middle of the body so the camera never lurches. |
 | **0.4.1** | Polish. The jar is now `sharp-verdict-<version>.jar`. Removed the dead target-switch counter from the debug panel, cached the compiled ignore list instead of rebuilding it every frame, and cleaned the wording left over from the single-player-only design. No behaviour change. |
 | **0.4.0** | Rebranded as SHARP: Verdict (black, white, one red point). An editable ignore list (end crystals, item frames, vehicles, projectiles, villagers, golems, your own pets), and an aim height that adapts: middle out of reach, feet in reach, sliding down while the target falls. |
 | **0.3.0** | Runs everywhere: single-player, LAN and servers, with the camera. Players first, then armor stands, then animals. The lock never moves to a second target during a hold. No name needed on targets. A client tick counter replaces the world clock for smoothing, which stopped a once-a-second hitch on servers. |
