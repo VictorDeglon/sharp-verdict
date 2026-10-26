@@ -395,7 +395,7 @@ Two hooks keep it from getting stuck on: the full work happens once per rendered
 **Real-game test:** `./gradlew runClientGameTest` starts Minecraft with the mod on a virtual screen (on Linux: `xvfb-run -a ./gradlew runClientGameTest`), builds a stone platform with dummies, holds the key, and checks what the game and the mod actually do. It covers:
 
 - with `requireMarker` on, lock on the right dummy (not the closer unnamed one), colours blue / yellow / red / purple read from what the renderer is given
-- the aim lands in the feet zone; the camera reaches the target in well under a second, in one direction, without overshoot or wobble
+- out of reach, the aim lands on the middle of the body; the camera reaches the target in well under a second, in one direction, without overshoot or wobble
 - a bare hand does not reach 3.5 blocks and an iron spear does, and the colour and text change with it
 - a mannequin is outlined with exactly its real 0.6 by 1.8 box
 - an entity standing in the way turns the target purple and the text to COVERED
