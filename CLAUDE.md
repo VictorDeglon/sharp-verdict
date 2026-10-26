@@ -70,6 +70,6 @@ The jar is named by `archives_base_name=sharp-verdict`. The mod id inside it is 
 
 ## Known gaps
 
-- The in-game test has not been re-run since the 0.2.0 delivery. The scenarios for tiers, the lock that does not move, and the 13-block out-of-reach aim exist in `SharpGameTest` but have never been executed.
+- The in-game test last passed for 0.4.0 (78 checks, macOS, 2026-10-26). It cannot run in the cloud sandbox. It runs on a Mac with a display: keep the display awake with `caffeinate -dimsu`, or the game stops drawing frames and the test hangs.
 - Nothing has run on a real multiplayer server.
 - Raised shields, elytra and fake-player bots are unit tested only.

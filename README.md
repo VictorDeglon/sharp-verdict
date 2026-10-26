@@ -39,8 +39,23 @@ Hold one key. It picks the best target in range, outlines its real hitbox in col
 | **Show** | The real hitbox, coloured by what you can hit, and one line of status above the hotbar. |
 | **Work** | Single-player, LAN and servers. Client side only. |
 
+<table>
+  <tr>
+    <td width="33%"><img src="assets/screenshots/locked.png" alt="A dummy outlined in blue. The status reads LOCKED, sharp dummy, 3.5 m, out of reach."></td>
+    <td width="33%"><img src="assets/screenshots/in-reach.png" alt="The same dummy with a red fill inside a blue outline. The status reads IN REACH, holding an iron spear."></td>
+    <td width="33%"><img src="assets/screenshots/covered.png" alt="An armor stand stands in front of the dummy, whose outline is purple. The status reads COVERED."></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>LOCKED</b>. Bare hands do not reach 3.5 m.</sub></td>
+    <td align="center"><sub><b>IN REACH</b>. An iron spear does, from the same spot.</sub></td>
+    <td align="center"><sub><b>COVERED</b>. Another hitbox is in the way.</sub></td>
+  </tr>
+</table>
+
+<p align="center"><sub>Taken by the real-game test in Minecraft 26.3. Nothing is staged: these are the frames it checks.</sub></p>
+
 > [!NOTE]
-> **Honest status.** Built and covered by 314 unit tests. The in-game test has not been re-run for the 0.3.0 and 0.4.0 changes, because the build sandbox could not open a graphics context, and nothing has run on a real server yet. Run `./gradlew runClientGameTest` on a machine with working OpenGL before you trust the in-game behaviour. Details in [docs/TESTING.md](docs/TESTING.md).
+> **Honest status.** 314 unit tests pass, and the real-game test passed for 0.4.0: 78 checks in Minecraft 26.3 on macOS, run on 2026-10-26. Nothing has run on a real multiplayer server yet. Details in [docs/TESTING.md](docs/TESTING.md).
 
 ## Install
 
@@ -389,7 +404,7 @@ Two hooks keep it from getting stuck on: the full work happens once per rendered
 - priority tiers: a player-shaped body is locked before a nearer sheep, and when it is killed mid-hold the lock does not jump to the sheep; the next press takes the sheep
 - release and screens opening switch it off, and a world opened to LAN still activates
 
-It writes `sharp-gametest-report.txt` and screenshots into `build/run/clientGameTest/`.
+It writes `sharp-gametest-report.txt` and screenshots into `build/run/clientGameTest/`. Last run: 0.4.0, 78 checks passed, 0 failed, on macOS (Apple silicon, OpenGL 4.1 over Metal). On a Mac, keep the display awake while it runs (`caffeinate -dimsu ./gradlew runClientGameTest`): a sleeping display stops the game drawing frames and the test waits forever.
 
 **What neither can check:** a raised shield (no vanilla mob raises one, so the shield maths is unit-tested only, and the call that reads it is compile-checked), elytra, bots from fake-player mods, and how the camera *feels* on a real GPU and a real mouse. Nothing here has run on a real multiplayer server: the tick-counter fix for the once-a-second hitch comes from reading how the server's time packets reach the client, and a LAN world is the closest the game test gets.
 

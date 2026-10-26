@@ -11,7 +11,7 @@ Rebranded as **SHARP: Verdict**, the target lock module of the SHARP client. The
 - **New look.** Black and white with one red point: logo, mod icon, README banner and social preview, with `tools/branding` to regenerate them.
 - **Docs.** The README was rebuilt around install, controls and a first-lock walkthrough, with the long form folded into a reference.
 
-314 unit tests pass. The real-game test has not been re-run for this version, see [docs/TESTING.md](docs/TESTING.md). Nothing has run on a real multiplayer server yet.
+314 unit tests pass. The real-game test passed: 78 checks in Minecraft 26.3 on macOS, including the first real run of the 0.3.0 scenarios (tiers, and the lock that does not move). See [docs/TESTING.md](docs/TESTING.md). Nothing has run on a real multiplayer server yet.
 
 ## 0.3.0
 
