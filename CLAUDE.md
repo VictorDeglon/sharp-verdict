@@ -5,7 +5,7 @@ SHARP: Verdict is a Fabric client mod for Minecraft 26.3. Hold a key, it locks o
 ## Commands
 
 ```bash
-./gradlew build                 # needs JDK 25. Compiles, runs every unit test, builds build/libs/sharp-<version>.jar
+./gradlew build                 # needs JDK 25. Compiles, runs every unit test, builds build/libs/sharp-verdict-<version>.jar
 ./gradlew test                  # unit tests only, a few seconds
 ./gradlew runClient             # development client with the mod loaded
 ./gradlew runClientGameTest     # plays the feature in real Minecraft. Needs working OpenGL. Linux: xvfb-run -a ./gradlew runClientGameTest
@@ -58,10 +58,18 @@ Frame flow: key, focus, screen and world state go through `ActivationTracker`. `
 
 ## Releasing
 
-Version lives in `gradle.properties` (`mod_version`). One commit per version, tagged `vX.Y.Z`. Each GitHub release carries the jar, a plain text list of test results from that build, and notes that say what was and was not run. The social preview image cannot be set through the API: upload `assets/branding/social-preview.png` under Settings by hand.
+Version lives in `gradle.properties` (`mod_version`). One commit per version, tagged `vX.Y.Z`. Each GitHub release carries the jar, a plain text list of test results from that build, and notes that say what was and was not run.
+
+The release is built by `.github/workflows/release.yml`, not by hand:
+
+1. Bump `mod_version`, add a `## X.Y.Z` section to `CHANGELOG.md` that says what changed and what was and was not run, and update `docs/TESTING.md`.
+2. Commit, then `git tag vX.Y.Z` and `git push origin vX.Y.Z`.
+3. The workflow checks the tag matches `mod_version`, builds, and publishes the release with `sharp-verdict-X.Y.Z.jar`, `test-results-X.Y.Z.txt` (from `tools/release/test-summary.py`) and that changelog section as the notes.
+
+The jar is named by `archives_base_name=sharp-verdict`. The mod id inside it is still `sharp`. The social preview image cannot be set through the API: upload `assets/branding/social-preview.png` under Settings by hand.
 
 ## Known gaps
 
-- The in-game test has not been re-run since the 0.2.0 delivery. The scenarios for tiers, the lock that does not move, and the 13-block out-of-reach aim exist in `SharpGameTest` but have never been executed.
+- The in-game test last passed for 0.4.0 (78 checks, macOS, 2026-10-26). It cannot run in the cloud sandbox. It runs on a Mac with a display: keep the display awake with `caffeinate -dimsu`, or the game stops drawing frames and the test hangs.
 - Nothing has run on a real multiplayer server.
 - Raised shields, elytra and fake-player bots are unit tested only.

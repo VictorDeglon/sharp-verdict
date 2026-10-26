@@ -1,0 +1,56 @@
+# Pushing a tag vX.Y.Z builds that commit and publishes a GitHub release with the jar,
+# a plain text list of the unit test results, and the notes for that version from CHANGELOG.md.
+
+name: release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+      - name: check the tag matches mod_version
+        run: |
+          version=$(sed -n 's/^mod_version=//p' gradle.properties)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match mod_version=$version in gradle.properties."
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: build
+        run: ./gradlew build
+      - name: list test results
+        run: python3 tools/release/test-summary.py build/test-results/test --title "SHARP: Verdict $VERSION unit tests, built from ${GITHUB_SHA::7}" > "build/libs/test-results-$VERSION.txt"
+      - name: take the notes for this version from CHANGELOG.md
+        run: |
+          awk -v v="## $VERSION" '$0 == v { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md > build/release-notes.md
+          if [ ! -s build/release-notes.md ]; then
+            echo "CHANGELOG.md has no section '## $VERSION'."
+            exit 1
+          fi
+          printf '\n---\n\nNeeds Minecraft 26.3, Fabric Loader 0.19.5 or newer and Fabric API. Put the jar in your `mods` folder. Full install steps are in the [README](https://github.com/%s#install).\n' "$GITHUB_REPOSITORY" >> build/release-notes.md
+      - name: publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME"
+          "build/libs/sharp-verdict-$VERSION.jar"
+          "build/libs/test-results-$VERSION.txt"
+          --title "SHARP: Verdict $VERSION"
+          --notes-file build/release-notes.md
+          --verify-tag

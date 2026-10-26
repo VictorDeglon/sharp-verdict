@@ -6,9 +6,23 @@ What was run for each version, and what was not.
 | --- | --- | --- | --- |
 | 0.2.0 | 261 passed, 0 failed | Listed in the README | Not run by us. The source says it was run before delivery. |
 | 0.3.0 | 280 passed, 0 failed | Ignoring the tier handicap broke 4 tests. Letting the lock switch targets broke 7. | **Not run.** Minecraft launched and the mod loaded, then the sandbox could not open a graphics context. The scenario for tiers and the no-switch lock was written but has not been executed. |
-| 0.4.0 | 314 passed, 0 failed | Removing the fall blend broke 3 tests. Removing the reach hold broke 1. Removing the slew limit broke 4. | **Not run**, same reason. Two checks were changed for the new out-of-reach aim (middle of the body instead of the feet). |
+| 0.4.0 | 314 passed, 0 failed | Removing the fall blend broke 3 tests. Removing the reach hold broke 1. Removing the slew limit broke 4. | **Passed, 78 checks, 0 failed.** Run on 2026-10-26 on macOS (Apple silicon, OpenGL 4.1 over Metal). This was also the first run of the 0.3.0 scenarios: the tiers and the lock that does not move. |
 
 Each mutation check edits the code to be wrong on purpose, runs the suite, and confirms at least one test fails. The edit is then reverted. A suite that cannot fail proves nothing.
+
+## The real-game run for 0.4.0
+
+`./gradlew runClientGameTest` on a MacBook (Apple silicon), JDK 25 from Homebrew. Minecraft 26.3 picked OpenGL 4.1 over Metal. The run took about a minute once the game's assets were downloaded. Some numbers from the report:
+
+- The camera closed a 26.6 degree gap to the dummy in 8 ticks (0.4 s) and ended 0.25 degrees off, with no reversal and no overshoot. Once settled, the yaw moved 0.1 degrees over 2 seconds.
+- Bare hands did not reach a dummy 3.5 blocks away. An iron spear did, and the fill turned red.
+- A mannequin was outlined with exactly its 0.6 by 1.8 box.
+- With no marker on anything, a mannequin was locked before a nearer sheep. When it died mid-hold the lock did not move to the sheep. The next press took the sheep.
+
+Two things to know when running it on a Mac:
+
+- **Keep the display awake.** A first attempt hung for two days right after the title screen loaded: with the display asleep the game draws no frames and the test waits for one. `caffeinate -dimsu ./gradlew runClientGameTest` avoids it.
+- **The first run downloads about 485 MB** of game assets. A dropped connection fails the `downloadAssets` task. Run it again and it carries on from what it has. Once everything is cached, `--offline` works.
 
 ## What is covered by unit tests
 

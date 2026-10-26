@@ -5,18 +5,21 @@
 <h3 align="center">One target. Decided once. Held until you let go.</h3>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.4.0-050505?style=flat-square&labelColor=050505&color=E10600">
+  <a href="https://github.com/VictorDeglon/sharp-verdict/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/VictorDeglon/sharp-verdict?style=flat-square&labelColor=050505&color=E10600&label=release"></a>
   <img alt="minecraft" src="https://img.shields.io/badge/minecraft-26.3-ffffff?style=flat-square&labelColor=050505">
   <img alt="loader" src="https://img.shields.io/badge/fabric-0.19.5%2B-ffffff?style=flat-square&labelColor=050505">
-  <img alt="tests" src="https://img.shields.io/badge/unit%20tests-314%20passing-ffffff?style=flat-square&labelColor=050505">
+  <a href="https://github.com/VictorDeglon/sharp-verdict/actions/workflows/build.yml"><img alt="build" src="https://img.shields.io/github/actions/workflow/status/VictorDeglon/sharp-verdict/build.yml?branch=main&style=flat-square&labelColor=050505&color=ffffff&label=build"></a>
+  <a href="docs/TESTING.md"><img alt="tests" src="https://img.shields.io/badge/unit%20tests-314%20passing-ffffff?style=flat-square&labelColor=050505"></a>
 </p>
 
 <p align="center">
+  <a href="https://github.com/VictorDeglon/sharp-verdict/releases/latest"><b>Download</b></a> &nbsp;&middot;&nbsp;
   <a href="#install">Install</a> &nbsp;&middot;&nbsp;
   <a href="#controls">Controls</a> &nbsp;&middot;&nbsp;
   <a href="#your-first-lock">First lock</a> &nbsp;&middot;&nbsp;
   <a href="#how-it-decides">How it decides</a> &nbsp;&middot;&nbsp;
   <a href="#settings-worth-knowing">Settings</a> &nbsp;&middot;&nbsp;
+  <a href="#servers">Servers</a> &nbsp;&middot;&nbsp;
   <a href="#build-from-source">Build</a> &nbsp;&middot;&nbsp;
   <a href="#reference">Reference</a>
 </p>
@@ -36,8 +39,23 @@ Hold one key. It picks the best target in range, outlines its real hitbox in col
 | **Show** | The real hitbox, coloured by what you can hit, and one line of status above the hotbar. |
 | **Work** | Single-player, LAN and servers. Client side only. |
 
+<table>
+  <tr>
+    <td width="33%"><img src="assets/screenshots/locked.png" alt="A dummy outlined in blue. The status reads LOCKED, sharp dummy, 3.5 m, out of reach."></td>
+    <td width="33%"><img src="assets/screenshots/in-reach.png" alt="The same dummy with a red fill inside a blue outline. The status reads IN REACH, holding an iron spear."></td>
+    <td width="33%"><img src="assets/screenshots/covered.png" alt="An armor stand stands in front of the dummy, whose outline is purple. The status reads COVERED."></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>LOCKED</b>. Bare hands do not reach 3.5 m.</sub></td>
+    <td align="center"><sub><b>IN REACH</b>. An iron spear does, from the same spot.</sub></td>
+    <td align="center"><sub><b>COVERED</b>. Another hitbox is in the way.</sub></td>
+  </tr>
+</table>
+
+<p align="center"><sub>Taken by the real-game test in Minecraft 26.3. Nothing is staged: these are the frames it checks.</sub></p>
+
 > [!NOTE]
-> **Honest status.** Built and covered by 314 unit tests. The in-game test has not been re-run for the 0.3.0 and 0.4.0 changes, because the build sandbox could not open a graphics context, and nothing has run on a real server yet. Run `./gradlew runClientGameTest` on a machine with working OpenGL before you trust the in-game behaviour. Details in [docs/TESTING.md](docs/TESTING.md).
+> **Honest status.** 314 unit tests pass, and the real-game test passed for 0.4.0: 78 checks in Minecraft 26.3 on macOS, run on 2026-10-26. Nothing has run on a real multiplayer server yet. Details in [docs/TESTING.md](docs/TESTING.md).
 
 ## Install
 
@@ -100,7 +118,9 @@ rank = distance + handicap(kind) + 0.1 * (degrees away from your crosshair)
 | Armor stands | 3 blocks | `armorStandPenalty` |
 | Animals and everything else that lives | 6 blocks | `otherPenalty` |
 
-A sheep 2 blocks away loses to a player 2.5 blocks away, and beats a player 15 blocks away. Range, field of view and line of sight decide who is eligible at all, before any of this.
+So a player beats an animal unless the animal is more than 6 blocks closer. A sheep 2 blocks away loses to a player 2.5 blocks away, and beats a player 15 blocks away. Between two of the same kind the nearer one wins, and the crosshair only breaks near-ties (30 degrees off costs 3 blocks).
+
+Range, field of view and line of sight decide who is eligible at all, before any of this: a player behind you never beats a sheep in front of you when the cone is 140 degrees. Set `priorityTiers` to `false` for the earlier behaviour: the entity closest to the crosshair wins and distance only breaks ties.
 
 **Aim height** follows the situation. Out of reach: the middle of the body, the biggest and most forgiving spot. In reach: the feet zone, within about a tenth of a second. Falling: the middle while the target is 5 or more blocks above your feet, sliding down as it comes level with you. Nothing is random, and nothing moves faster than the camera's own limits.
 
@@ -132,13 +152,17 @@ A lock-on that turns your camera onto other players is aim assist. **Most public
 You need **JDK 25** and an internet connection. The first build downloads Minecraft and the mappings.
 
 ```bash
-./gradlew build                 # compile, run the 314 unit tests, produce build/libs/sharp-0.4.0.jar
+./gradlew build                 # compile, run the 314 unit tests, produce build/libs/sharp-verdict-0.4.0.jar
 ./gradlew test                  # unit tests only, fast
 ./gradlew runClient             # a development client with the mod loaded
 ./gradlew runClientGameTest     # plays the feature in the real game (needs OpenGL; on Linux: xvfb-run -a ./gradlew runClientGameTest)
 ```
 
-The mod is `build/libs/sharp-0.4.0.jar`. Ignore `sharp-0.4.0-sources.jar`.
+The mod is `build/libs/sharp-verdict-0.4.0.jar`. Ignore `sharp-verdict-0.4.0-sources.jar`.
+
+On macOS with Homebrew, `brew install openjdk@25` and point `JAVA_HOME` at it for the build: `export JAVA_HOME=$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home`.
+
+Releases are built by GitHub Actions. Push a tag `vX.Y.Z` that matches `mod_version` and has a section in [CHANGELOG.md](CHANGELOG.md), and the release workflow attaches the jar, the unit test results, and those notes.
 
 ## Reference
 
@@ -174,28 +198,10 @@ If your eye is inside the target's box, it is shown purple, locks regardless of 
 <details>
 <summary><b>What happens when you hold it, and when it switches itself off</b></summary>
 
-- **Selection.** Among the entities inside `range` and the `fovDegrees` cone (64 blocks and 140 degrees by default), it picks the best one by the rules under Who gets picked, just below. Entities behind blocks are skipped (`requireLineOfSight`).
+- **Selection.** Among the entities inside `range` and the `fovDegrees` cone (64 blocks and 140 degrees by default), it picks the best one by the rules in [How it decides](#how-it-decides). Entities behind blocks are skipped (`requireLineOfSight`).
 - **It does not change its mind.** The first target it takes is the target for the whole hold. If that target dies, leaves range or the cone, or is hidden behind a block, the lock goes quiet (`NO TARGET`) and waits. It never moves to another entity, even a better one, and it picks the same one up again if it becomes valid. To lock something else, let go of the key and press it again. If nothing was valid when you pressed, the first valid target during that hold is the one it takes.
 - **Camera (optional, off until you press `H`).** It eases your view onto the target: fast, never overshooting, with a speed limit, an acceleration limit and a per-frame limit. It backs off when you move the mouse yourself. In the real game it closes a 27 degree gap in 8 ticks (0.4 s).
 - **Release.** Let go and the lock, outline and camera motion all stop on that same frame.
-
-### Who gets picked
-
-Every candidate gets a rank in blocks, and the lowest rank wins:
-
-```
-rank = distance + handicap(kind) + 0.1 * (degrees away from the crosshair)
-```
-
-| Kind | Handicap (default) | Setting |
-| --- | --- | --- |
-| Players, mannequins, fake-player bodies | 0 | |
-| Armor stands | 3 blocks | `armorStandPenalty` |
-| Animals and everything else that lives | 6 blocks | `otherPenalty` |
-
-So a player beats an animal unless the animal is more than 6 blocks closer. A sheep 2 blocks away loses to a player 2.5 blocks away, and wins against a player 15 blocks away. Between two of the same kind the nearer one wins, and the crosshair only breaks near-ties (30 degrees off costs 3 blocks). Range, cone and line of sight decide who is eligible at all, before any of this: a player behind you never beats a sheep in front of you when the cone is 140 degrees.
-
-Set `priorityTiers` to `false` for the earlier behaviour: the entity closest to the *crosshair* wins and distance only breaks ties.
 
 #### When it switches itself off
 It turns off at once, clears the target, and **will not turn back on while you keep holding the key**. You have to release and press again. That applies to:
@@ -389,7 +395,7 @@ Two hooks keep it from getting stuck on: the full work happens once per rendered
 **Real-game test:** `./gradlew runClientGameTest` starts Minecraft with the mod on a virtual screen (on Linux: `xvfb-run -a ./gradlew runClientGameTest`), builds a stone platform with dummies, holds the key, and checks what the game and the mod actually do. It covers:
 
 - with `requireMarker` on, lock on the right dummy (not the closer unnamed one), colours blue / yellow / red / purple read from what the renderer is given
-- the aim lands in the feet zone; the camera reaches the target in well under a second, in one direction, without overshoot or wobble
+- out of reach, the aim lands on the middle of the body; the camera reaches the target in well under a second, in one direction, without overshoot or wobble
 - a bare hand does not reach 3.5 blocks and an iron spear does, and the colour and text change with it
 - a mannequin is outlined with exactly its real 0.6 by 1.8 box
 - an entity standing in the way turns the target purple and the text to COVERED
@@ -398,7 +404,7 @@ Two hooks keep it from getting stuck on: the full work happens once per rendered
 - priority tiers: a player-shaped body is locked before a nearer sheep, and when it is killed mid-hold the lock does not jump to the sheep; the next press takes the sheep
 - release and screens opening switch it off, and a world opened to LAN still activates
 
-It writes `sharp-gametest-report.txt` and screenshots into `build/run/clientGameTest/`.
+It writes `sharp-gametest-report.txt` and screenshots into `build/run/clientGameTest/`. Last run: 0.4.0, 78 checks passed, 0 failed, on macOS (Apple silicon, OpenGL 4.1 over Metal). On a Mac, keep the display awake while it runs (`caffeinate -dimsu ./gradlew runClientGameTest`): a sleeping display stops the game drawing frames and the test waits forever.
 
 **What neither can check:** a raised shield (no vanilla mob raises one, so the shield maths is unit-tested only, and the call that reads it is compile-checked), elytra, bots from fake-player mods, and how the camera *feels* on a real GPU and a real mouse. Nothing here has run on a real multiplayer server: the tick-counter fix for the once-a-second hitch comes from reading how the server's time packets reach the client, and a LAN world is the closest the game test gets.
 
@@ -412,7 +418,7 @@ It writes `sharp-gametest-report.txt` and screenshots into `build/run/clientGame
 - **Shields:** aiming at the back is what you asked for, and it is implemented, but see Shields: it does not make the hit land by itself.
 - **Covered detection is geometric.** It treats every pickable entity as a plain box, the way the game's own crosshair pick does. It does not know about entities that ignore the pick or about anything modded that changes picking.
 - **Reach comes from the game for the item in your main hand.** Enchantments and attribute changes that the game applies to reach are included because the game answers; the mod adds nothing of its own.
-- **Servers:** it only moves your camera and draws on your screen. A server sees a player who turns smoothly onto targets, and many have anti-cheat that flags exactly that. See Multiplayer.
+- **Servers:** it only moves your camera and draws on your screen. A server sees a player who turns smoothly onto targets, and many have anti-cheat that flags exactly that. See [Servers](#servers).
 - **Network lag:** on a server the target is where your client last heard it was, which is slightly behind where it really is.
 
 </details>
@@ -428,19 +434,18 @@ It writes `sharp-gametest-report.txt` and screenshots into `build/run/clientGame
 
 </details>
 
-<details>
-<summary><b>Versions</b></summary>
+## Versions
 
 | Version | What it is |
 | --- | --- |
-| **0.4.0** | Rebranded as SHARP: Verdict (black, white, one red point). An editable ignore list (end crystals, item frames, vehicles, projectiles, villagers, golems, your own pets), and an aim height that adapts: middle out of reach, feet in reach, sliding down while the target falls. |
-| **0.3.0** | Runs everywhere: single-player, LAN and servers, with the camera. Players first, then armor stands, then animals. The lock never moves to a second target during a hold. No name needed on targets. A client tick counter replaces the world clock for smoothing, which stopped a once-a-second hitch on servers. |
-| **0.2.0** | Multiplayer visualization patch: selection and hitbox outlines on servers for marked entities. The camera stayed single-player only. |
+| **0.4.0** | Rebranded as SHARP: Verdict. An editable ignore list, and an aim height that adapts: middle out of reach, feet in reach, sliding down while the target falls. |
+| **0.3.0** | Runs everywhere, camera included. Players first, then armor stands, then animals. The lock never moves to a second target during a hold. |
+| **0.2.0** | Multiplayer visualization patch: selection and outlines on servers for marked entities. |
 
-</details>
+The full list is in [CHANGELOG.md](CHANGELOG.md). Jars are on the [Releases](https://github.com/VictorDeglon/sharp-verdict/releases) page.
 
 ---
 
 <p align="center">
-  <sub><b>SHARP: Verdict</b> &middot; a module of the SHARP client &middot; &copy; Victor Deglon, all rights reserved</sub>
+  <sub><b>SHARP: Verdict</b> &middot; a module of the SHARP client &middot; &copy; Victor Deglon, all rights reserved, see <a href="LICENSE">LICENSE</a></sub>
 </p>
